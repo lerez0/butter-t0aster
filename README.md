@@ -76,4 +76,4 @@ If you have suggestions or improvements for the script, feel free to open an iss
 
 ---
 
-### **Enjoy our buttery smooth server setup! 🍞🧈**
+### **enjoy our buttery smooth server setup! 🍞🧈**
