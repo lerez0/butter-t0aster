@@ -59,13 +59,13 @@ Once the Debian installation is finished and the server has rebooted, log in wit
 
 ## MIY - make it your-own
 
-Feel free to edit the script to suit your needs! Want to change the snapshot frequency? Adjust the swappiness value? Or maybe add another backup target? All of that can be done by editing the `butter-t0aster.sh` file.
+Feel free to fork and edit the script to suit your needs! Want to change the snapshot frequency? Adjust the swappiness value? Or maybe add another backup target? All of that can be done by editing the `setup-butter-and-t0aster.sh` file.
 
 ---
 
 ## license
 
-This script is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This script is under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ---
 
