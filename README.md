@@ -37,8 +37,9 @@ Because like butter in a toaster, butter-filesystem in your drive makes homelab 
 
 Once the Debian installation is finished and the server has rebooted, log in with the `sudo` user account (we do not recommend using root account - and we advise to never install funny scripts like this one with the root superuser) and run `cd` to reach the `/home` directory.
 
-1. **clone this repository** to the server `home` directory
+1. **clone this repository** to the server `home` directory using git
    ```bash
+   sudo apt install git
    git clone https://github.com/lerez0/butter-t0aster.git
    cd butter-t0aster
    ```
