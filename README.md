@@ -47,7 +47,7 @@ Once the Debian installation is finished and the server has rebooted, log in wit
    git clone https://github.com/lerez0/butter-t0aster.git
    cd butter-t0aster
 
-   # or simply download the script
+   # or download the script
    wget https://raw.githubusercontent.com/lerez0/butter-t0aster/main/setup-butter-and-t0aster.sh
    ```
 
