@@ -1,4 +1,5 @@
 #!/bin/bash
+
 set -e
 
 echo "Let's start it all by creating a log file to trap errors"
