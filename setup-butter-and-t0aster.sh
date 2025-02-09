@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# function to handle errors
+echo "Let's start it all by creating a log file to trap errors"
 LOG_FILE="/var/log/butter-t0aster.log" # define log file
 error_handler() {
     echo "An error occurred. Exiting script. Review the logs below:"
@@ -20,35 +20,101 @@ if [[ $(/usr/bin/id -u) -ne 0 ]]; then # check for root privilege
 fi
 
 # disclaimer
-echo "This sm00th script will set up a 🌀Debian 12 server with butter file system (BTRFS) with:"
-echo " - root partition snapshots 📸"
-echo " - automatic backups of home partition when a 'backups' USB is inserted 🛟"
-echo " - system optimisation to preserve SSD drives lifespan 💈"
 echo ""
-echo "Optionnally, disable idle state when the laptop lid is closed 😴"
 echo ""
-echo "If any step fails, the script will exit and the logs will be printed for review 👀"
+echo ""
+echo "======================================================="
+echo ""
+echo "  🌀 This sm00th script will set up a Debian 12 server"
+echo "     and butter file system (BTRFS) with: "
+echo "       📸 root partition snapshots"
+echo "       🛟 automatic backups of home partition when a 'backups' USB is inserted"
+echo "       💈 system optimisation to preserve SSD drives lifespan"
+echo "  😴 Optionnally, disable idle state when the laptop lid is closed"
+echo "  👀 If any step fails, the script will exit and the logs will be printed for review"
+echo ""
+echo "======================================================="
+echo ""
+echo ""
+echo ""
 
+echo "1. detect and mount root and home partitions 🔎⏫"
+DISK_ROOT="" # identify /root partition
+DISK_HOME="" # identify /home partition
 
-echo "1. mount root and home ⏫"
-DISK_ROOT="/dev/sda1" # root partition
-DISK_HOME="/dev/sda2" # home partition
-ROOT_MOUNT_POINT="/mnt"
-HOME_MOUNT_POINT="/mnt/home"
+while IFS= read -r line; do
+    PARTITION=$(echo "$line" | awk '{print $1}')
+    MOUNTPOINT=$(echo "$line" | awk '{print $2}')
+    FSTYPE=$(echo "$line" | awk '{print $3}')
 
-mount $DISK_ROOT $ROOT_MOUNT_POINT # mount root partition
-mount $DISK_HOME $HOME_MOUNT_POINT # mount home partition
+    if [[ $FSTYPE == "btrfs" ]]; then
+        if [[ $MOUNTPOINT == "/" && -z "$DISK_ROOT" ]]; then
+            DISK_ROOT="$PARTITION" # assign /root partition
+        elif [[ $MOUNTPOINT == "/home" && -z "$DISK_HOME" ]]; then
+            DISK_HOME="$PARTITION" # assign /home partition
+        fi
+    fi
+done < <(findmnt -n -o SOURCE,TARGET,FSTYPE | grep btrfs)
+
+# if fail, detect mounted partitions using blkid
+if [[ -z "$DISK_ROOT" || -z "$DISK_HOME" ]]; then
+
+    while IFS= read -r line; do
+        PARTITION=$(echo "$line" | awk -F '=' '/DEVNAME/{print $2}' | tr -d '"')
+        LABEL=$(echo "$line" | awk -F '=' '/LABEL/{print $2}' | tr -d '"')
+        FS_TYPE=$(echo "$line" | awk -F '=' '/TYPE/{print $2}' | tr -d '"')
+
+        if [[ $FS_TYPE == "btrfs" ]]; then
+            if [[ $LABEL == "part-root" && -z "$DISK_ROOT" ]]; then
+                DISK_ROOT="$PARTITION" # Assign partition with label "part-root" as root
+            elif [[ $LABEL == "part-home" && -z "$DISK_HOME" ]]; then
+                DISK_HOME="$PARTITION" # Assign partition with label "part-home" as home
+            fi
+        fi
+    done < <(blkid -o export)
+fi
+
+if [[ -z "$DISK_ROOT" || -z "$DISK_HOME" ]]; then
+    echo "ERROR could not detect both /root and /home BTRFS partitions"
+    echo "Please ensure your disk layout includes two BTRFS partitions for /root and /home."
+    exit 1
+fi
+
+echo "detected /root partition: $DISK_ROOT"
+echo "detected /home partition: $DISK_HOME"
+
+while true; do
+    read -p "Are these partitions correct? (y/n): " confirm
+    case $confirm in
+        [yY]) break ;;
+        [nN])
+            echo "Partition detection aborted. Please verify your disk layout and try again."
+            exit 1 ;;
+        *)
+            echo "Please answer y or n." ;;
+    esac
+done
+
+ROOT_MOUNT_POINT="/mnt" # print mount point for /root
+HOME_MOUNT_POINT="/mnt/home" # print mount point for /home
+
+mkdir -p $ROOT_MOUNT_POINT # ensure /root mount point exists
+mkdir -p $HOME_MOUNT_POINT # ensure /home mount point exists
+
+mount $DISK_ROOT $ROOT_MOUNT_POINT # mount /root partition
+mount $DISK_HOME $HOME_MOUNT_POINT # mount /home partition
 
 echo "2. create BTRFS subvolumes 🧈"
-btrfs subvolume create $ROOT_MOUNT_POINT/@ # create root subvolume
+btrfs subvolume create $ROOT_MOUNT_POINT/@ # create /root subvolume
 umount $ROOT_MOUNT_POINT # unmount root partition
-btrfs subvolume create $HOME_MOUNT_POINT/@home # create home subvolume
+btrfs subvolume create $HOME_MOUNT_POINT/@home # create /home subvolume
 umount $HOME_MOUNT_POINT # unmount home partition
 
-echo "3. remounting root and home with subvolumes ⏫"
-mount -o subvol=@ $DISK_ROOT / # remount root with subvolume
-mkdir -p /home # create /home directory
-mount -o subvol=@home $DISK_HOME /home # remount home with subvolume
+echo "3. remount /root and /home with subvolumes ⏫"
+mount -o subvol=@ $DISK_ROOT / # remount /root with subvolume
+mkdir -p /home
+mount -o subvol=@home $DISK_HOME /home # remount /home with subvolume
+echo "✅ /root and /home partitions mounted"
 
 echo "4. update /etc/fstab with SSD-friendly options (backup up original fstab) 💾"
 cp /etc/fstab /etc/fstab.bak # backup fstab
@@ -57,12 +123,13 @@ UUID_HOME=$(blkid -s UUID -o value $DISK_HOME) # fetch UUID for home
 echo "UUID=$UUID_ROOT /      btrfs defaults,noatime,compress=zstd,ssd,space_cache=v2 0 1" | tee -a /etc/fstab # update fstab for root
 echo "UUID=$UUID_HOME /home  btrfs defaults,noatime,compress=zstd,ssd,space_cache=v2 0 2" | tee -a /etc/fstab # update fstab for home
 
-echo "5. first snapshot for root to keep for ever 📸"
+echo "5. first snapshot for /root (to keep for ever) 📸"
 SNAPSHOT_DIR="/.snapshots"
 mkdir -p $SNAPSHOT_DIR # create snapshot directory
 chmod 700 $SNAPSHOT_DIR # ensure only root acces to the snapshot directory
 btrfs subvolume create $SNAPSHOT_DIR # create snapshot subvolume
 btrfs subvolume snapshot / $SNAPSHOT_DIR/initial # create initial snapshot
+echo "📸 initial snapshot for /root created"
 
 echo "6. install ZRAM tools to compress swap in RAM 🗜"
 apt update # update packages lists
@@ -76,10 +143,10 @@ PRIORITY=10
 EOF
 
 echo "start ZRAM on system boot"
-systemctl enable zramswap # starts ZRAM now
-systemctl start zramswap # start ZRAM on boot
+systemctl start zramswap # start ZRAM now
+systemctl enable zramswap # start ZRAM on boot
 
-echo "7. setting swappiness to 10 📝"
+echo "7. set swappiness to 10 📝"
 sysctl vm.swappiness=10 # set swappiness value
 echo "vm.swappiness=10" >> /etc/sysctl.conf  # make swappiness persistent
 sysctl vm.swappiness=10 # apply change now
