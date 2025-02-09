@@ -2,24 +2,6 @@
 
 set -e
 
-echo "Let's start it all by creating a log file to trap errors"
-LOG_FILE="/var/log/butter-t0aster.log" # define log file
-error_handler() {
-    echo "An error occurred. Exiting script. Review the logs below:"
-    echo "======== BEGIN LOGS ========"
-    cat "$LOG_FILE" # print the log file
-    echo "======== END LOGS ========"
-    exit 1
-}
-
-trap error_handler ERR # set up error trap
-exec > >(tee -a "$LOG_FILE") 2>&1 # redirect outputs to log file
-
-if [[ $(/usr/bin/id -u) -ne 0 ]]; then # check for root privilege
-   echo "This script must be run by a sudo user with root permissions. Please retry."
-   exit 1
-fi
-
 # disclaimer
 echo ""
 echo ""
@@ -43,6 +25,24 @@ echo "========================================================="
 echo ""
 echo ""
 echo ""
+
+echo "Let's start it all by creating a log file to trap errors"
+LOG_FILE="/var/log/butter-t0aster.log" # define log file
+error_handler() {
+    echo "An error occurred. Exiting script. Review the logs below:"
+    echo "======== BEGIN LOGS ========"
+    cat "$LOG_FILE" # print the log file
+    echo "======== END LOGS ========"
+    exit 1
+}
+
+trap error_handler ERR # set up error trap
+exec > >(tee -a "$LOG_FILE") 2>&1 # redirect outputs to log file
+
+if [[ $(/usr/bin/id -u) -ne 0 ]]; then # check for root privilege
+   echo "This script must be run by a sudo user with root permissions. Please retry."
+   exit 1
+fi
 
 echo "🔎 check current partition layout"
 lsblk -o NAME,FSTYPE,MOUNTPOINT | tee -a "$LOG_FILE"
