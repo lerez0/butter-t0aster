@@ -1,4 +1,5 @@
 # butter-t0aster
+⚠️ project under development - do not use yet!
 > *a simple script to use right after first system boot, to mount subvolumes in a Debian BTRFS system, set up snapshots and automatic backups, in a scoop of buttery smoothness*
 
 ![butter-t0aster-illustration](./ressources/butter-t0aster-illustration.webp)
@@ -37,10 +38,17 @@ Because like butter in a toaster, butter-filesystem in your drive makes homelab 
 
 Once the Debian installation is finished and the server has rebooted, log in with the `sudo` user account (we do not recommend using root account - and we advise to never install funny scripts like this one with the root superuser) and run `cd` to reach the `/home` directory.
 
-1. **clone this repository** to the server `home` directory
+1. **clone this repository** to the server `home` directory using git
    ```bash
+   cd
+
+   # install and use git
+   sudo apt install git
    git clone https://github.com/lerez0/butter-t0aster.git
    cd butter-t0aster
+
+   # or simply download the script
+   wget https://raw.githubusercontent.com/lerez0/butter-t0aster/main/setup-butter-and-t0aster.sh
    ```
 
 2. **make the script executable**
@@ -50,7 +58,7 @@ Once the Debian installation is finished and the server has rebooted, log in wit
 
 3. **run the script**
    ```bash
-   sudo setup-butter-and-t0aster.sh
+   sudo ./setup-butter-and-t0aster.sh
    ```
 
    This will automatically configure your system, apply all the optimisations, and reboot the server.
@@ -59,13 +67,13 @@ Once the Debian installation is finished and the server has rebooted, log in wit
 
 ## MIY - make it your-own
 
-Feel free to edit the script to suit your needs! Want to change the snapshot frequency? Adjust the swappiness value? Or maybe add another backup target? All of that can be done by editing the `butter-t0aster.sh` file.
+Feel free to fork and edit the script to suit your needs! Want to change the snapshot frequency? Adjust the swappiness value? Or maybe add another backup target? All of that can be done by editing the `setup-butter-and-t0aster.sh` file.
 
 ---
 
 ## license
 
-This script is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This script is under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ---
 
@@ -76,4 +84,4 @@ If you have suggestions or improvements for the script, feel free to open an iss
 
 ---
 
-### **Enjoy our buttery smooth server setup! 🍞🧈**
+### **enjoy our buttery smooth server setup! 🍞🧈**
