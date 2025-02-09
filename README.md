@@ -2,7 +2,7 @@
 ⚠️ project under development - do not use yet!
 > *a simple script to use right after first system boot, to mount subvolumes in a Debian BTRFS system, set up snapshots and automatic backups, in a scoop of buttery smoothness*
 
-![butter-t0aster-illustration](./ressources/butter-t0aster-illustration.webp)
+![butter-t0aster-illustration](./docs/butter-t0aster-illustration.webp)
 
 ## why **_butter-t0aster_** ?
 
