@@ -51,7 +51,7 @@ Once the Debian installation is finished and the server has rebooted, log in wit
 
 3. **run the script**
    ```bash
-   sudo ./setup-butter-and-t0aster.sh
+   sudo bash setup-butter-and-t0aster.sh
    ```
 
    This will automatically configure your system, apply all the optimisations, and reboot the server.

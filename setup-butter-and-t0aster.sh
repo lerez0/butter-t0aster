@@ -6,9 +6,9 @@ echo "Let's start it all by creating a log file to trap errors"
 LOG_FILE="/var/log/butter-t0aster.log" # define log file
 error_handler() {
     echo "An error occurred. Exiting script. Review the logs below:"
-    echo "=== BEGIN LOGS ==="
+    echo "======== BEGIN LOGS ========"
     cat "$LOG_FILE" # print the log file
-    echo "=== END LOGS ==="
+    echo "======== END LOGS ========"
     exit 1
 }
 
@@ -24,65 +24,99 @@ fi
 echo ""
 echo ""
 echo ""
-echo "======================================================="
+echo "========================================================="
+echo "                                                         "
+echo "  🌀 This sm00th script will make a Debian 12 server     "
+echo "      with butter file system (BTRFS) ready for:         "
+echo "       📸 /root partition snapshots                      "
+echo "       🛟  automatic backups of /home partition          "
+echo "       💈 preserving SSDs lifespan                       "
+echo "       😴 stay active when laptop lid is closed          "
+echo "                                                         "
+echo "========================================================="
+echo "                                                         "
+echo "  👀 If any step fails, the script will exit             "
+echo "     and logs will be printed for review from:           "
+echo "      👉 $LOG_FILE                                       "
+echo "                                                         "
+echo "========================================================="
 echo ""
-echo "  🌀 This sm00th script will set up a Debian 12 server"
-echo "     and butter file system (BTRFS) with: "
-echo "       📸 root partition snapshots"
-echo "       🛟 automatic backups of home partition when a 'backups' USB is inserted"
-echo "       💈 system optimisation to preserve SSD drives lifespan"
-echo "  😴 Optionnally, disable idle state when the laptop lid is closed"
-echo "  👀 If any step fails, the script will exit and the logs will be printed for review"
-echo ""
-echo "======================================================="
-echo ""
 echo ""
 echo ""
 
-echo "1. detect and mount root and home partitions 🔎⏫"
-DISK_ROOT="" # identify /root partition
-DISK_HOME="" # identify /home partition
+echo "🔎 check current partition layout"
+lsblk -o NAME,FSTYPE,MOUNTPOINT | tee -a "$LOG_FILE"
+echo ""
 
-while IFS= read -r line; do
-    PARTITION=$(echo "$line" | awk '{print $1}')
-    MOUNTPOINT=$(echo "$line" | awk '{print $2}')
-    FSTYPE=$(echo "$line" | awk '{print $3}')
+echo "🔎 look for BTRFS subvolumes"
+btrfs subvolume list / || echo "No subvolumes detected on /"
+btrfs subvolume list /home || echo "No subvolumes detected on /home"
+echo ""
 
-    if [[ $FSTYPE == "btrfs" ]]; then
-        if [[ $MOUNTPOINT == "/" && -z "$DISK_ROOT" ]]; then
-            DISK_ROOT="$PARTITION" # assign /root partition
-        elif [[ $MOUNTPOINT == "/home" && -z "$DISK_HOME" ]]; then
-            DISK_HOME="$PARTITION" # assign /home partition
-        fi
-    fi
-done < <(findmnt -n -o SOURCE,TARGET,FSTYPE | grep btrfs)
-
-# if fail, detect mounted partitions using blkid
-if [[ -z "$DISK_ROOT" || -z "$DISK_HOME" ]]; then
-
-    while IFS= read -r line; do
-        PARTITION=$(echo "$line" | awk -F '=' '/DEVNAME/{print $2}' | tr -d '"')
-        LABEL=$(echo "$line" | awk -F '=' '/LABEL/{print $2}' | tr -d '"')
-        FS_TYPE=$(echo "$line" | awk -F '=' '/TYPE/{print $2}' | tr -d '"')
-
-        if [[ $FS_TYPE == "btrfs" ]]; then
-            if [[ $LABEL == "part-root" && -z "$DISK_ROOT" ]]; then
-                DISK_ROOT="$PARTITION" # Assign partition with label "part-root" as root
-            elif [[ $LABEL == "part-home" && -z "$DISK_HOME" ]]; then
-                DISK_HOME="$PARTITION" # Assign partition with label "part-home" as home
-            fi
-        fi
-    done < <(blkid -o export)
+echo "WARNING unmounting /root and /home will clean subvolumes and reset partition layout"
+echo "As your server being freshly installed, you shouldn't have any data to lose yet 🤞"
+echo ""
+read -p "Do you wish to continue? (y/n): " confirm
+if [[ "$confirm" != "y" ]]; then
+    echo "✋ script aborted"
+    exit 0
 fi
 
+echo "🚧 unmount and clean subvolumes"
+umount /home || echo "✅ no /home partition mounted"
+umount / || echo "✅ no /root partition mounted"
+echo ""
+
+mount /dev/sda2 /mnt
+btrfs subvolume delete /mnt/@rootfs || echo "@rootfs not found"
+btrfs subvolume delete /mnt/@home || echo "@home not found"
+echo ""
+
+umount /mnt
+echo "✅ partitions are clean"
+echo ""
+
+echo "🔎 check /root and /home paths"
+DISK_ROOT=$(findmnt -n -o SOURCE -T /)
+DISK_HOME=$(findmnt -n -o SOURCE -T /home)
+echo ""
+
+echo "1. mount /root and /home partitions ⏫"
+DISK_ROOT=$(findmnt -n -o SOURCE -T /)
+DISK_HOME=$(findmnt -n -o SOURCE -T /home)
+echo ""
+
 if [[ -z "$DISK_ROOT" || -z "$DISK_HOME" ]]; then
-    echo "ERROR could not detect both /root and /home BTRFS partitions"
-    echo "Please ensure your disk layout includes two BTRFS partitions for /root and /home."
+  echo "ERROR root and home partitions not detected"
+  echo "Attempting to detect unmounted BTRFS partitions..."
+  echo ""
+  
+  while IFS= read -r line; do
+    PARTITION=$(echo "$line" | awk -F '=' '/DEVNAME/{print $2}' | tr -d '"')
+    FS_TYPE=$(echo "$line" | awk -F '=' '/TYPE/{print $2}' | tr -d '"')
+
+    if [[ $FS_TYPE == "btrfs" ]]; then
+        if [[ -z "$DISK_ROOT" ]]; then
+            echo "👉 potential /root partition detected: $PARTITION"
+            echo ""
+            DISK_ROOT="$PARTITION"
+        elif [[ -z "$DISK_HOME" ]]; then
+            echo "👉 potential /home partition detected: $PARTITION"
+            echo ""
+            DISK_HOME="$PARTITION"
+        fi
+    fi
+  done < <(blkid -o export)
+
+  if [[ -z "$DISK_ROOT" || -z "$DISK_HOME" ]]; then
+    echo "ERROR /root and /home partitions could not be reliably detected"
     exit 1
+  fi
 fi
 
 echo "detected /root partition: $DISK_ROOT"
 echo "detected /home partition: $DISK_HOME"
+echo ""
 
 while true; do
     read -p "Are these partitions correct? (y/n): " confirm
@@ -94,13 +128,16 @@ while true; do
         *)
             echo "Please answer y or n." ;;
     esac
-done
+done 
 
 ROOT_MOUNT_POINT="/mnt" # print mount point for /root
 HOME_MOUNT_POINT="/mnt/home" # print mount point for /home
 
 mkdir -p $ROOT_MOUNT_POINT # ensure /root mount point exists
 mkdir -p $HOME_MOUNT_POINT # ensure /home mount point exists
+
+HOME_PERMISSIONS=$(stat -c "%a" /home) # save initial permissions of /home
+echo "💡 Initial /home permissions saved: $HOME_PERMISSIONS"
 
 mount $DISK_ROOT $ROOT_MOUNT_POINT # mount /root partition
 mount $DISK_HOME $HOME_MOUNT_POINT # mount /home partition
@@ -115,14 +152,18 @@ echo "3. remount /root and /home with subvolumes ⏫"
 mount -o subvol=@ $DISK_ROOT / # remount /root with subvolume
 mkdir -p /home
 mount -o subvol=@home $DISK_HOME /home # remount /home with subvolume
+
+chmod $HOME_PERMISSIONS /home # restore initial /home permissions
+echo "🔐 /home permissions restored to: $HOME_PERMISSIONS"
+
 echo "✅ /root and /home partitions mounted"
 
 echo "4. update /etc/fstab with SSD-friendly options (backup up original fstab) 💾"
 cp /etc/fstab /etc/fstab.bak # backup fstab
 UUID_ROOT=$(blkid -s UUID -o value $DISK_ROOT) # fetch UUID for root
 UUID_HOME=$(blkid -s UUID -o value $DISK_HOME) # fetch UUID for home
-echo "UUID=$UUID_ROOT /      btrfs defaults,noatime,compress=zstd,ssd,space_cache=v2 0 1" | tee -a /etc/fstab # update fstab for root
-echo "UUID=$UUID_HOME /home  btrfs defaults,noatime,compress=zstd,ssd,space_cache=v2 0 2" | tee -a /etc/fstab # update fstab for home
+echo "UUID=$UUID_ROOT /      btrfs defaults,noatime,compress=zstd,ssd,space_cache=v2,subvol=@     0 1" | tee -a /etc/fstab # update fstab for root
+echo "UUID=$UUID_HOME /home  btrfs defaults,noatime,compress=zstd,ssd,space_cache=v2,subvol=@home 0 2" | tee -a /etc/fstab # update fstab for home
 
 echo "5. first snapshot for /root (to keep for ever) 📸"
 SNAPSHOT_DIR="/.snapshots"
