@@ -4,11 +4,15 @@
 ## Get latest from https://github.com/github/gitignore/blob/main/VisualStudio.gitignore
 
 # User-specific files
+ressources/
 *.rsuser
 *.suo
 *.user
 *.userosscache
 *.sln.docstates
+
+# macOS
+.DS_*
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
