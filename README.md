@@ -23,11 +23,11 @@ Because like butter in a toaster, butter-filesystem in your drive makes homelab 
 ## prerequisites
 
 - a freshly installed **Debian 12 bookworm** server
-- *msdos* or *gpt* partition table (old BIOS/no EFI computers need msdos/MasterBootRecord and do not need a `/boot` partition)
-- 2 btrfs primary partitions with `noatime` mount options
+- *msdos* or *gpt* partition table (old BIOS/no EFI computers use msdos/MasterBootRecord and do not require a `/boot` partition)
+- two btrfs primary partitions with `noatime` mount options
   - `/` bootable
   - `/home`
-- 1 swap area of 2GB should suffice (just in case)
+- one swap area of 2GB should suffice (just in case)
 - **sudo** privileges (or root access) to execute the script
 - **USB device** labeled "_backups_" for automatic backups
 - a copy of this script or an Internet connection
