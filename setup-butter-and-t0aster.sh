@@ -1,6 +1,13 @@
 #!/bin/bash
 
 set -e
+LOG_FILE="/var/log/butter-t0aster.log" # define log file
+
+if [[ $(/usr/bin/id -u) -ne 0 ]]; then # check for root privilege
+    echo "🛑 this script must be run by a sudo user with root permissions"
+    echo "   please retry"
+    exit 1
+fi
 
 # disclaimer
 echo ""
@@ -17,9 +24,9 @@ echo "       😴 stay active when laptop lid is closed          "
 echo "                                                         "
 echo "========================================================="
 echo "                                                         "
-echo "  👀 if any step fails, the script will exit             "
-echo "  🗞 and logs will be printed for review from:           "
-echo "      👉 $LOG_FILE                                       "
+echo "  👀  if any step fails, the script will exit            "
+echo "  🗞  and logs will be printed for review from:          "
+echo "      👉 ${LOG_FILE}                                     "
 echo "                                                         "
 echo "========================================================="
 echo ""
@@ -28,82 +35,81 @@ echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-echo "  🗞 Let's start it all by creating a log file to trap errors"
-LOG_FILE="/var/log/butter-t0aster.log" # define log file
+echo "🗞  Let's start it all by creating a log file to trap errors"
+touch "$LOG_FILE"
+chmod 644 "$LOG_FILE"
 error_handler() {
     echo "🛑 error occurred - exit script"
-    echo "======== BEGIN LOGS ========"
-    cat "$LOG_FILE" # print the log file
-    echo "========  END LOGS  ========"
+    if [ -f "$LOG_FILE" ]; then
+      echo "======== BEGIN LOGS ========"
+      cat "$LOG_FILE" # print the log file
+      echo "========  END LOGS  ========"
+    else
+      echo "⚠️  no log file found at $LOG_FILE"
+    fi
     exit 1
 }
 
 trap error_handler ERR # set up error trap
 exec > >(tee -a "$LOG_FILE") 2>&1 # redirect outputs to log file
-
-if [[ $(/usr/bin/id -u) -ne 0 ]]; then # check for root privilege
-    echo "  🛑 this script must be run by a sudo user with root permissions"
-    echo "     please retry"
-    exit 1
-fi
 echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-echo " 1️⃣ create mount points 🪄"
+echo "1️⃣  create mount points 🪄"
 ROOT_MOUNT_POINT="/mnt" # print mount point for /root
 HOME_MOUNT_POINT="/mnt/home" # print mount point for /home
 
 mkdir -p "$ROOT_MOUNT_POINT" # ensure /root mount point exists
 if [ $? -ne 0 ]; then
-    echo "    🛑 ERROR could not create $ROOT_MOUNT_POINT"
+    echo "🛑 ERROR could not create $ROOT_MOUNT_POINT"
     exit 1
 fi
 
 mkdir -p "$HOME_MOUNT_POINT" # ensure /home mount point exists
 if [ $? -ne 0 ]; then
-    echo "    🛑 ERROR could not create $HOME_MOUNT_POINT"
+    echo "🛑 ERROR could not create $HOME_MOUNT_POINT"
     exit 1
 fi
 
-echo "    ✅ mount points created successfully"
+echo "✅ mount points created successfully"
 echo ""
 
-echo "    🔎 check current partition layout"
+echo "🔎 check current partition layout"
 lsblk -o NAME,FSTYPE,MOUNTPOINT | tee -a "$LOG_FILE"
 echo ""
 
-echo "    🔎 look for BTRFS subvolumes"
+echo "🔎 look for BTRFS subvolumes"
 btrfs subvolume list / || echo "No subvolumes detected on /"
 btrfs subvolume list /home || echo "No subvolumes detected on /home"
 echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-echo " 2️⃣ detecte /root and /home partitions ⏫"
+echo "2️⃣  detecte /root and /home partitions ⏫"
 DISK_ROOT=$(findmnt -n -o SOURCE -T / | awk -F'[' '{print $1}')
 DISK_HOME=$(findmnt -n -o SOURCE -T /home | awk -F'[' '{print $1}')
-echo ""
 
 if [[ -z "$DISK_ROOT" || -z "$DISK_HOME" ]]; then
-    echo "    🛑 ERROR /root and /home partitions not detected"
+    echo "🛑 ERROR /root and /home partitions not detected"
     exit 1
 fi
 
-echo "    ✅ detected /root partition: $DISK_ROOT"
-echo "    ✅ detected /home partition: $DISK_HOME"
+echo "✅ detected /root partition: $DISK_ROOT"
+echo "✅ detected /home partition: $DISK_HOME"
 echo ""
 
 read -p "  Are these partitions correct? (y/n): " confirm
 [[ "$confirm" == "y" || "$confirm" == "Y" ]] || { echo "Partition detection aborted."; exit 1; }
 
 HOME_PERMISSIONS=$(stat -c "%a" /home)
+echo ""
 echo "💡 Initial /home permissions saved: $HOME_PERMISSIONS"
 echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-echo " 3️⃣ ensure mount points exist 🏗️"
+echo "3️⃣  ensure mount points exist 🏗️"
 mkdir -p /mnt
 mkdir -p /mnt/home
 echo "    ✅ mount points created"
@@ -111,7 +117,7 @@ echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-echo " 4️⃣ ensure BTRFS subvolumes exist 🧈"
+echo "4️⃣  ensure BTRFS subvolumes exist 🧈"
 mount "$DISK_HOME" /mnt/home || { echo "🛑 ERROR failed to mount /home temporarily"; exit 1; }
 
 if ! btrfs subvolume list /mnt/home | grep -q "@home"; then
@@ -125,7 +131,7 @@ echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-echo " 5️⃣ mount /root and /home in optimized BTRFS subvolumes ⏫"
+echo "5️⃣  mount /root and /home in optimized BTRFS subvolumes ⏫"
 mount -o subvol=@rootfs "$DISK_ROOT" /mnt || { echo "🛑 ERROR failed to mount /root"; exit 1; }
 mount -o subvol=@home "$DISK_HOME" /mnt/home || { echo "🛑 ERROR failed to mount /home"; exit 1; }
 
@@ -136,36 +142,48 @@ echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-echo " 6️⃣ configure /etc/fstab for persistence 💾"
+echo "6️⃣  configure /etc/fstab for persistence 💾"
 UUID_ROOT=$(blkid -s UUID -o value "$DISK_ROOT")
 UUID_HOME=$(blkid -s UUID -o value "$DISK_HOME")
 sudo sed -i "/\/home.*btrfs.*/d" /etc/fstab # remove incorrect entries
 sudo sed -i "/\/.*btrfs.*/d" /etc/fstab
 
-echo "    📝 write fstab entries"
+echo "📝 write fstab entries"
 echo "UUID=$UUID_ROOT /      btrfs defaults,noatime,compress=zstd,ssd,space_cache=v2,subvol=@rootfs 0 1" | tee -a /etc/fstab
 echo "UUID=$UUID_HOME /home  btrfs defaults,noatime,compress=zstd,ssd,space_cache=v2,subvol=@home  0 2" | tee -a /etc/fstab
-echo "    ✅ /etc/fstab updated successfully."
+echo "✅ /etc/fstab updated successfully."
 
-echo "    🔄 remount /root and /home"
+echo "🔄 remount /root and /home"
 mount -o remount,compress=zstd "$DISK_ROOT" /
 mount -o remount,compress=zstd "$DISK_HOME" /home
 echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-echo " 7️⃣ install SNAPPER and create '0 initial snapshot' for /root (to keep for ever) 📸"
+echo "7️⃣  install SNAPPER and create '0 initial snapshot' for /root (to keep for ever) 📸"
 apt-get update # update packages lists
-apt-get install -y snapper snapper-support grub-btrfs
+echo "deb http://deb.debian.org/debian bookworm-backports main" >> /etc/apt/sources.list # add backports repository for missing packages
+apt-get update
+
+if ! apt-get install -y snapper; then
+    echo "🛑 SNAPPER installation failed" >&2
+    exit 1
+fi
+
+if ! apt-get install -y -t bookworm-backports grub-btrfs; then
+    echo "🛑 grub-btrfs installation from backports failed" >&2
+    exit 1
+fi
+
 snapper -c root create-config / # configure SNAPPER for /root
 
-echo "    check /.snapshots BTRFS subvolume state"
+echo "   check /.snapshots BTRFS subvolume state"
 if ! btrfs subvolume list / | grep -q "path /.snapshots"; then
-    echo "    📂 create BTRFS subvolume for SNAPPER"
+    echo "📂 create BTRFS subvolume for SNAPPER"
     btrfs subvolume create /.snapshots
 fi
 
-echo "    configuring snapshot policies"
+echo "   configuring snapshot policies"
 snapper -c root set-config "TIMELINE_CREATE=yes"
 snapper -c root set-config "TIMELINE_CLEANUP=yes"
 snapper -c root set-config "TIMELINE_MIN_AGE=1800"
@@ -175,43 +193,43 @@ snapper -c root set-config "TIMELINE_LIMIT_WEEKLY=2"
 snapper -c root set-config "TIMELINE_LIMIT_MONTHLY=2"
 snapper -c root set-config "TIMELINE_LIMIT_YEARLY=0"
 
-echo "    enable SNAPPER automatic snapshots"
+echo "   enable SNAPPER automatic snapshots"
 systemctl enable --now snapper-timeline.timer
 systemctl enable --now snapper-cleanup.timer
 
 snapper -c root create --description "00 initial server snapshot"
-echo "    📸 initial snapshot for /root created"
+echo "📸 initial snapshot for /root created"
 
-echo "    configuring GRUB-BTRFS for boot snapshots"
+echo "   configuring GRUB-BTRFS for boot snapshots"
 systemctl enable --now grub-btrfsd.service
 update-grub
 
-echo "    To list previous snapshots, run:"
-echo "       👉 sudo snapper -c root list"
-echo "    To rollback to a previous snapshot, use:"
-echo "       👉 sudo snapper rollback <snapshot_number>"
+echo "   To list previous snapshots, run:"
+echo "      👉 sudo snapper -c root list"
+echo "   To rollback to a previous snapshot, use:"
+echo "      👉 sudo snapper rollback <snapshot_number>"
 echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-echo " 8️⃣ install ZRAM tools to compress swap in RAM 🗜"
+echo "8️⃣  install ZRAM tools to compress swap in RAM 🗜"
 apt-get install zram-tools -y # install ZRAM tools
 
-echo "    configure ZRAM with 25% of RAM and compression"
+echo "   configure ZRAM with 25% of RAM and compression"
 cat <<EOF > /etc/default/zramswap # configure ZRAM settings
 ZRAM_PERCENTAGE=25
 COMPRESSION_ALGO=zstd
 PRIORITY=10
 EOF
 
-echo "    start ZRAM on system boot"
+echo "   start ZRAM on system boot"
 systemctl start zramswap # start ZRAM now
 systemctl enable zramswap # start ZRAM on boot
 echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-echo " 9️⃣ set swappiness to 10 📝"
+echo "9️⃣  set swappiness to 10 📝"
 sysctl vm.swappiness=10 # set swappiness value
 echo "vm.swappiness=10" >> /etc/sysctl.conf  # make swappiness persistent
 sysctl vm.swappiness=10 # apply change now
@@ -219,14 +237,14 @@ echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-echo " 1️⃣0️⃣ plan SSD trim once a week 💈"
+echo "1️⃣0️⃣  plan SSD trim once a week 💈"
 echo "0 0 * * 0 fstrim /" | tee -a /etc/cron.d/ssd_trim # schedule SSD trim with a cron job
 echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-echo " 1️⃣1️⃣ set up automatic backups when 'backups' USB is inserted 🛟"
-echo "      📝 create backup script"
+echo "1️⃣1️⃣  set up automatic backups when 'backups' USB is inserted 🛟"
+echo "📝 create backup script"
 BACKUP_SCRIPT='/usr/local/bin/auto_backup.sh'
 cat <<EOF > $BACKUP_SCRIPT # write backup script
 #!/bin/bash
@@ -234,11 +252,11 @@ TARGET="/media/backups"
 LOG_FILE="/var/log/backup.log"
 mkdir -p \$TARGET # create backup target
 rsync -aAXv --delete --exclude={"/lost+found/*","/mnt/*","/media/*","/var/cache/*","/proc/*","/tmp/*","/dev/*","/run/*","/sys/*"} / \$TARGET/ >> \$LOG_FILE 2>&1 # perform backup
-echo "      🛟 backup completed at \$(date)" >> \$LOG_FILE # log completion timestamp
+echo "🛟 backup completed at \$(date)" >> \$LOG_FILE # log completion timestamp
 EOF
 chmod +x $BACKUP_SCRIPT # make backup script executable
 
-echo "         set udev rule for USB detection"
+echo "   set udev rule for USB detection"
 UDEV_RULE='/etc/udev/rules.d/99-backup.rules'
 cat <<EOF > $UDEV_RULE # create udev rule
 ACTION=="add", SUBSYSTEM=="block", ENV{ID_FS_LABEL}=="backups", RUN+="$BACKUP_SCRIPT"
@@ -248,12 +266,12 @@ echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-echo " 1️⃣2️⃣ disable sleep when lid is closed (in logind.conf) 💡"
+echo "1️⃣2️⃣  disable sleep when lid is closed (in logind.conf) 💡"
 while true; do
-    read -p "     Do you want the laptop to remain active when the lid is closed? (y/n): " lid_response
+    read -p "    Do you want the laptop to remain active when the lid is closed? (y/n): " lid_response
     case $lid_response in
         [yYnN]) break ;;
-        *) echo "     answer 'y' or 'n'" ;;
+        *) echo "    answer 'y' or 'n'" ;;
     esac
 done
 
@@ -271,7 +289,7 @@ echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-echo " 1️⃣3️⃣ disable suspend and hibernation 😴"
+echo "1️⃣3️⃣  disable suspend and hibernation 😴"
 for target in sleep.target suspend.target hibernate.target hybrid-sleep.target; do # ignore sleep triggers
     systemctl mask "$target"
     systemctl disable "$target"
@@ -280,31 +298,31 @@ echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-echo " 1️⃣4️⃣ take automatic snapshots before automatic security upgrades 📸"
-echo "     if automatic security updates have been activated during OS install"
+echo "1️⃣4️⃣  take automatic snapshots before automatic security upgrades 📸"
+echo "    if automatic security updates have been activated during OS install"
 if dpkg -l | grep -q unattended-upgrades; then
-  echo "     configure snapshot hook for unattended-upgrades"
+  echo "    configure snapshot hook for unattended-upgrades"
   echo 'DPkg::Pre-Invoke {"btrfs subvolume snapshot / /.snapshots/pre-update-$(date +%Y%m%d%H%M%S)";};' | sudo tee /etc/apt/apt.conf.d/99-btrfs-snapshot-before-upgrade > /dev/null
 else
-  echo "     automatic security upgrades are not installed; skip"
+  echo "    automatic security upgrades are not installed; skip"
 fi
 echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-echo " 1️⃣5️⃣ create '01 optimised server snapshot' 📸"
+echo "1️⃣5️⃣  create '01 optimised server snapshot' 📸"
 snapper -c root create --description "01 optimised server snapshot"
 echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-echo " 1️⃣6️⃣ create post-reboot system check 🧰"
+echo "1️⃣6️⃣  create post-reboot system check 🧰"
 echo "      This script will run a series of tests after reboot"
-echo "       to ensure the butter-t0aster script ran fine"
+echo "      to ensure the butter-t0aster script ran fine"
 
 cat <<EOF > /usr/local/bin/post-reboot-system-check.sh
 #!/bin/bash
-echo "     🧰 run post-reboot system check"
+echo "🧰 run post-reboot system check"
 
 echo "🔎 check BTRFS subvolumes"
 btrfs subvolume list /
@@ -338,7 +356,7 @@ echo ""
 
 cat <<EOF > /etc/systemd/system/post-reboot-system-check.service
 [Unit]
-Description=Run post-reboot system checks
+Description=run post-reboot system checks
 After=multi-user.target
 
 [Service]
@@ -350,7 +368,7 @@ RemainAfterExit=no
 WantedBy=multi-user.target
 EOF
 systemctl enable post-reboot-system-check.service
-echo "     ✅ post-reboot script will be run once after reboot"
+echo "✅ post-reboot script will be run once after reboot"
 echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
