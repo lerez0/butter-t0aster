@@ -23,7 +23,7 @@ Because like butter in a toaster, butter-filesystem in your drive makes homelab 
 ## prerequisites
 
 - a freshly installed **Debian 12 bookworm** server
-- *msdos* or *gpt* partition table (old BIOS/no EFI computers use msdos/MasterBootRecord and do not require a `/boot` partition)
+- *msdos* or *gpt* partition table (old BIOS/no EFI computers use msdos/MasterBootRecord and do not require a specific `/boot` partition)
 - two btrfs primary partitions with `noatime` mount options
   - `/` bootable
   - `/home`
@@ -40,7 +40,6 @@ Once the Debian installation is finished and the server has rebooted, log in wit
 
 1. **download the script** to the user `home` directory
    ```bash
-   cd # open user /home directory
    wget https://raw.githubusercontent.com/lerez0/butter-t0aster/main/setup-butter-and-t0aster.sh
    ```
 
