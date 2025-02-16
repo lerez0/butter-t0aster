@@ -195,7 +195,7 @@ fi
 
 
 echo "   check /.snapshots BTRFS subvolume state"
-if ! btrfs subvolume list / | grep -q "path /.snapshots"; then
+if ! btrfs subvolume show /.snapshots &>/dev/null; then
     echo "📂 create BTRFS subvolume for SNAPPER"
     if ! btrfs subvolume create /.snapshots; then
         echo "🛑 /.snapshots subvolume creation failed" >&2
@@ -229,6 +229,7 @@ if ! systemctl enable --now grub-btrfsd; then
     echo "   this is not critical - let's continue"
 fi
 
+echo 'GRUB_DISABLE_OS_PROBER=true' >> /etc/default/grub
 if ! update-grub; then
     echo "🟠 GRUB update failed" >&2
     echo "   this is not critical - let's continue"
