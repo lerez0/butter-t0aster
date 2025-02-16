@@ -271,13 +271,13 @@ echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-echo "1️⃣0️⃣  plan SSD trim once a week 💈"
+echo "1️⃣ 0️⃣  plan SSD trim once a week 💈"
 echo "0 0 * * 0 fstrim /" | tee -a /etc/cron.d/ssd_trim # schedule SSD trim with a cron job
 echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-echo "1️⃣1️⃣  set up automatic backups when 'backups' USB is inserted 🛟"
+echo "1️⃣ 1️⃣  set up automatic backups when 'backups' USB is inserted 🛟"
 echo "📝 create backup script"
 BACKUP_SCRIPT='/usr/local/bin/auto_backup.sh'
 cat <<EOF > $BACKUP_SCRIPT # write backup script
@@ -300,7 +300,7 @@ echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-echo "1️⃣2️⃣  disable sleep when lid is closed (in logind.conf) 💡"
+echo "1️⃣ 2️⃣  disable sleep when lid is closed (in logind.conf) 💡"
 while true; do
     read -p "    Do you want the laptop to remain active when the lid is closed? (y/n): " lid_response
     case $lid_response in
@@ -323,7 +323,7 @@ echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-echo "1️⃣3️⃣  disable suspend and hibernation 😴"
+echo "1️⃣ 3️⃣  disable suspend and hibernation 😴"
 for target in sleep.target suspend.target hibernate.target hybrid-sleep.target; do # ignore sleep triggers
     systemctl mask "$target"
     systemctl disable "$target"
@@ -332,7 +332,7 @@ echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-echo "1️⃣4️⃣  take automatic snapshots before automatic security upgrades 📸"
+echo "1️⃣ 4️⃣  take automatic snapshots before automatic security upgrades 📸"
 echo "    if automatic security updates have been activated during OS install"
 if dpkg -l | grep -q unattended-upgrades; then
   echo "    configure snapshot hook for unattended-upgrades"
@@ -344,13 +344,13 @@ echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-echo "1️⃣5️⃣  create '01 optimised server snapshot' 📸"
+echo "1️⃣ 5️⃣  create '01 optimised server snapshot' 📸"
 snapper -c root create --description "01 optimised server snapshot"
 echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-echo "1️⃣6️⃣  create post-reboot system check 🧰"
+echo "1️⃣ 6️⃣  create post-reboot system check 🧰"
 echo "      This script will run a series of tests after reboot"
 echo "      to ensure the butter-t0aster script ran fine"
 
