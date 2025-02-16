@@ -233,7 +233,7 @@ if ! update-grub; then
     echo "   this is not critical - let's continue"
 fi
 
-echo "✅ Snapper and grub-btrfs installation complete"
+echo "✅ SNAPPER and GRUB-BTRFS installation complete"
 echo ""
 
 echo "   To list previous snapshots, run:"
