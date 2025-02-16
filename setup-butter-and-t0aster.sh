@@ -50,7 +50,7 @@ error_handler() {
     exit 1
 }
 
-trap error_handler ERR # set up error trap
+trap 'error_handler || true' ERR # set up error trap
 exec > >(tee -a "$LOG_FILE") 2>&1 # redirect outputs to log file
 echo ""
 
@@ -132,6 +132,7 @@ echo ""
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 echo "5️⃣  mount /root and /home in optimized BTRFS subvolumes ⏫"
+mkdir -p /mnt/home
 mount -o subvol=@rootfs "$DISK_ROOT" /mnt || { echo "🛑 ERROR failed to mount /root"; exit 1; }
 mount -o subvol=@home "$DISK_HOME" /mnt/home || { echo "🛑 ERROR failed to mount /home"; exit 1; }
 
