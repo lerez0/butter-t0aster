@@ -132,7 +132,7 @@ echo ""
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 echo "5️⃣  mount /root and /home in optimized BTRFS subvolumes ⏫"
-mkdir -p /mnt/home
+# mkdir -p /mnt/home
 mount -o subvol=@rootfs "$DISK_ROOT" /mnt || { echo "🛑 ERROR failed to mount /root"; exit 1; }
 mount -o subvol=@home "$DISK_HOME" /mnt/home || { echo "🛑 ERROR failed to mount /home"; exit 1; }
 
