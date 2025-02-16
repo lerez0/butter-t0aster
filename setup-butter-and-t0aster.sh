@@ -95,8 +95,8 @@ if [[ -z "$DISK_ROOT" || -z "$DISK_HOME" ]]; then
     exit 1
 fi
 
-echo "✅ detected /root partition: $DISK_ROOT"
-echo "✅ detected /home partition: $DISK_HOME"
+echo "📀 detected /root partition: $DISK_ROOT"
+echo "📀 detected /home partition: $DISK_HOME"
 echo ""
 
 read -p "  Are these partitions correct? (y/n): " confirm
@@ -160,27 +160,46 @@ echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-echo "7️⃣  install SNAPPER and create '0 initial snapshot' for /root (to keep for ever) 📸"
+echo "7️⃣  install snapshot tools and create '0 initial snapshot' for /root (to keep for ever) 📸"
 apt-get update # update packages lists
-echo "deb http://deb.debian.org/debian bookworm-backports main" >> /etc/apt/sources.list # add backports repository for missing packages
-apt-get update
 
-if ! apt-get install -y snapper; then
+echo "📦 install SNAPPER"
+if ! apt-get install -y snapper btrfs-progs git make; then
     echo "🛑 SNAPPER installation failed" >&2
     exit 1
 fi
 
-if ! apt-get install -y -t bookworm-backports grub-btrfs; then
+echo "📦 install GRUB-BTRFS from source"
     echo "🛑 grub-btrfs installation from backports failed" >&2
+if [ -d "/tmp/grub-btrfs" ]; then
+    rm -rf /tmp/grub-btrfs
+fi
+
+if ! git clone https://github.com/Antynea/grub-btrfs.git /tmp/grub-btrfs; then
+    echo "🛑 failed to clone grub-btrfs from repository" >&2
     exit 1
 fi
 
-snapper -c root create-config / # configure SNAPPER for /root
+cd /tmp/grub-btrfs
+if ! make install; then
+    echo "🛑 GRUB-BTRFS installation failed" >&2
+    exit 1
+fi
+
+echo "📝 configure SNAPPER for /root"
+if ! snapper -c root create-config /; then
+    echo "🛑 SNAPPER configuration failed" >&2
+    exit 1
+fi
+
 
 echo "   check /.snapshots BTRFS subvolume state"
 if ! btrfs subvolume list / | grep -q "path /.snapshots"; then
     echo "📂 create BTRFS subvolume for SNAPPER"
-    btrfs subvolume create /.snapshots
+    if ! btrfs subvolume create /.snapshots; then
+        echo "🛑 /.snapshots subvolume creation failed" >&2
+        exit 1
+    fi
 fi
 
 echo "   configuring snapshot policies"
@@ -197,12 +216,25 @@ echo "   enable SNAPPER automatic snapshots"
 systemctl enable --now snapper-timeline.timer
 systemctl enable --now snapper-cleanup.timer
 
-snapper -c root create --description "00 initial server snapshot"
-echo "📸 initial snapshot for /root created"
+if ! snapper -c root create --description "00 initial server snapshot"; then
+    echo "🛑 initial snapshot failed" >&2
+    exit 1
+fi
+echo "✅ initial snapshot for /root created"
 
-echo "   configuring GRUB-BTRFS for boot snapshots"
-systemctl enable --now grub-btrfsd.service
-update-grub
+echo "📸 configuring GRUB-BTRFS for boot snapshots"
+if ! systemctl enable --now grub-btrfsd; then
+    echo "🟠 enable GRUB-BTRFS service failed" >&2
+    echo "   this is not critical - let's continue"
+fi
+
+if ! update-grub; then
+    echo "🟠 GRUB update failed" >&2
+    echo "   this is not critical - let's continue"
+fi
+
+echo "✅ Snapper and grub-btrfs installation complete"
+echo ""
 
 echo "   To list previous snapshots, run:"
 echo "      👉 sudo snapper -c root list"
