@@ -134,7 +134,7 @@ echo ""
 echo "5️⃣  mount /root and /home in optimized BTRFS subvolumes ⏫"
 # mkdir -p /mnt/home
 mount -o subvol=@rootfs "$DISK_ROOT" /mnt || { echo "🛑 ERROR failed to mount /root"; exit 1; }
-mount -o subvol=@home "$DISK_HOME" /mnt/home || { echo "🛑 ERROR failed to mount /home"; exit 1; }
+mount -o subvol=@home "$DISK_HOME" /home || { echo "🛑 ERROR failed to mount /home"; exit 1; }
 
 chmod "$HOME_PERMISSIONS" /mnt/home
 echo "    🔐 /home permissions restored to: $HOME_PERMISSIONS"
@@ -407,15 +407,19 @@ echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-read -p "🏁 setup is complete - reboot now? (y/n): " reboot_response
+echo "🏁 setup is complete"
+echo ""
+read -p "   reboot now? (y/n): " reboot_response
 if [[ "$reboot_response" == "y" ]]; then
-  reboot
+  reboot now
 else
   echo ""
   echo "🔃 reboot is required to apply changes"
+  echo "   to reboot, run: "
+  echo "   👉 reboot now "
   echo "📸 to manually trigger a snapshot at any time, run:"
-  echo "👉 sudo btrfs subvolume snapshot / /.snapshots/manual-$(date +%Y%m%d%H%M%S)"
-  echo "🗞 logs are available at: $LOG_FILE"
+  echo "   👉 sudo btrfs subvolume snapshot / /.snapshots/manual-$(date +%Y%m%d%H%M%S)"
+  echo "🗞  logs are available at: $LOG_FILE"
   echo ""
   echo "   made with ⏳ by le rez0.net"
   echo "   please return experience and issues at https://github.com/lerez0"
