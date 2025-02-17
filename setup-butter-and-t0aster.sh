@@ -134,7 +134,11 @@ echo ""
 echo "5️⃣  mount /root and /home in optimized BTRFS subvolumes ⏫"
 # mkdir -p /mnt/home
 mount -o subvol=@rootfs "$DISK_ROOT" /mnt || { echo "🛑 ERROR failed to mount /root"; exit 1; }
-mount -o subvol=@home "$DISK_HOME" /home || { echo "🛑 ERROR failed to mount /home"; exit 1; }
+if ! findmnt /home &>/dev/null; then
+    mount -o subvol=@home "$DISK_HOME" /home || { echo "🛑 ERROR failed to mount /home"; exit 1; }
+else
+    echo "✅ /home is already mounted, skipping remount."
+fi
 
 chmod "$HOME_PERMISSIONS" /mnt/home
 echo "    🔐 /home permissions restored to: $HOME_PERMISSIONS"
