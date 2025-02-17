@@ -370,15 +370,15 @@ echo ""
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 echo "1️⃣ 6️⃣  create post-reboot system check 🧰"
-echo "       This script will run when the current user logs in after reboot"
-echo "       and run a series of tests to ensure butter-t0aster ran fine"
+echo "       Run this second script manually after reboot"
+echo "       to ensure butter-t0aster ran fine"
 
 CURRENT_USER=$(logname || who am i | awk '{print $1}')
 USER_HOME=$(getent passwd "$CURRENT_USER" | cut -d: -f6)
-CHECK_SCRIPT="$USER_HOME/.local/bin/post-reboot-system-check.sh"
-mkdir -p "$(dirname "$CHECK_SCRIPT")"
+CHECK_SCRIPT="$USER_HOME/post-reboot-system-check.sh"
+SETUP_SCRIPT="$0"
 
-cat <<EOF > "$CHECK_SCRIPT"
+cat <<'EOF' > "$CHECK_SCRIPT"
 #!/bin/bash
 echo "🧰 run post-reboot system check"
 
@@ -407,28 +407,27 @@ df -h
 echo ""
 
 echo "✅ post-reboot system check complete - remove script"
-rm "\$0"
-rm "$USER_HOME/.config/autostart/post-reboot-check.desktop"
-EOF
-
-chmod +x "$CHECK_SCRIPT"
 echo ""
 
-echo "📝 create post-reboot autostart for current user"
-mkdir -p "$USER_HOME/.config/autostart"
-cat <<EOF > "$USER_HOME/.config/autostart/post-reboot-check.desktop"
-[Desktop Entry]
-Type=Application
-Name=Post Reboot System Check
-Exec=$CHECK_SCRIPT
-Terminal=true
-X-GNOME-Autostart-enabled=true
+read -p "🗑️  remove both setup scripts? (y/n): " cleanup_response
+if [[ "$cleanup_response" == "y" || "$cleanup_response" == "Y" ]]; then
+    echo "   Removing setup and check scripts..."
+    rm "$0"
+    rm "$(dirname "$0")/setup-butter-and-t0aster.sh" 2>/dev/null
+    echo "✅ scripts removed"
+else
+    echo "   To remove this script later, run: "
+    echo "   👉 rm $0"
+fi
 EOF
 
-chown -R "$CURRENT_USER:$CURRENT_USER" "$(dirname "$CHECK_SCRIPT")"
-chown -R "$CURRENT_USER:$CURRENT_USER" "$USER_HOME/.config/autostart"
+chmod +x "$CHECK_SCRIPT" # allow script execution
+chown "$CURRENT_USER:$CURRENT_USER" "$CHECK_SCRIPT"
+echo ""
 
-echo "✅ post-reboot script will run when $CURRENT_USER logs in after reboot"
+echo "✅ post-reboot script has been created at: $CHECK_SCRIPT"
+echo "   after reboot, run it manually with:"
+echo "   👉 sudo bash $CHECK_SCRIPT"
 echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
