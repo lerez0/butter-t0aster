@@ -118,13 +118,21 @@ echo ""
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 echo "4️⃣  ensure BTRFS subvolumes exist 🧈"
+echo "    first, mount /home partition"
 mount "$DISK_HOME" /mnt/home || { echo "🛑 ERROR failed to mount /home temporarily"; exit 1; }
 
+echo "    and back up its content"
+mkdir -p /tmp/home_backup
+cp -a /home/* /tmp/home_backup/ || { echo "🛑 ERROR failed to backup home contents"; exit 1; }
+
 if ! btrfs subvolume list /mnt/home | grep -q "@home"; then
-    echo "   @home subvolume not found. Creating it..."
+    echo "    @home subvolume not found - create subvolume"
     btrfs subvolume create /mnt/home/@home
+    echo "    restore /home content to @home subvolume"
+    cp -a /tmp/home_backup/* /mnt/home/@home/ || { echo "🛑 ERROR failed to restore home contents"; exit 1; }
 fi
 
+rm -rf /tmp/home_backup
 umount /mnt/home
 echo "    ✅ BTRFS subvolume @home OK"
 echo ""
@@ -186,6 +194,13 @@ if ! git clone https://github.com/Antynea/grub-btrfs.git /tmp/grub-btrfs; then
 fi
 
 cd /tmp/grub-btrfs
+
+echo "📦 Installing dependencies for GRUB-BTRFS..."
+apt-get install -y grub-common grub-pc-bin grub2-common make gcc || {
+    echo "🛑 ERROR: Failed to install dependencies for GRUB-BTRFS" >&2
+    exit 1
+}
+
 if ! make install; then
     echo "🛑 GRUB-BTRFS installation failed" >&2
     exit 1
@@ -355,10 +370,15 @@ echo ""
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 echo "1️⃣ 6️⃣  create post-reboot system check 🧰"
-echo "      This script will run a series of tests after reboot"
-echo "      to ensure the butter-t0aster script ran fine"
+echo "       This script will run when the current user logs in after reboot"
+echo "       and run a series of tests to ensure butter-t0aster ran fine"
 
-cat <<EOF > /usr/local/bin/post-reboot-system-check.sh
+CURRENT_USER=$(logname || who am i | awk '{print $1}')
+USER_HOME=$(getent passwd "$CURRENT_USER" | cut -d: -f6)
+CHECK_SCRIPT="$USER_HOME/.local/bin/post-reboot-system-check.sh"
+mkdir -p "$(dirname "$CHECK_SCRIPT")"
+
+cat <<EOF > "$CHECK_SCRIPT"
 #!/bin/bash
 echo "🧰 run post-reboot system check"
 
@@ -387,26 +407,28 @@ df -h
 echo ""
 
 echo "✅ post-reboot system check complete - remove script"
-rm -- "$0"
+rm "\$0"
+rm "$USER_HOME/.config/autostart/post-reboot-check.desktop"
 EOF
-chmod +x /usr/local/bin/post-reboot-system-check.sh
+
+chmod +x "$CHECK_SCRIPT"
 echo ""
 
-cat <<EOF > /etc/systemd/system/post-reboot-system-check.service
-[Unit]
-Description=run post-reboot system checks
-After=multi-user.target
-
-[Service]
-Type=oneshot
-ExecStart=/usr/local/bin/post-reboot-system-check.sh
-RemainAfterExit=no
-
-[Install]
-WantedBy=multi-user.target
+echo "📝 create post-reboot autostart for current user"
+mkdir -p "$USER_HOME/.config/autostart"
+cat <<EOF > "$USER_HOME/.config/autostart/post-reboot-check.desktop"
+[Desktop Entry]
+Type=Application
+Name=Post Reboot System Check
+Exec=$CHECK_SCRIPT
+Terminal=true
+X-GNOME-Autostart-enabled=true
 EOF
-systemctl enable post-reboot-system-check.service
-echo "✅ post-reboot script will be run once after reboot"
+
+chown -R "$CURRENT_USER:$CURRENT_USER" "$(dirname "$CHECK_SCRIPT")"
+chown -R "$CURRENT_USER:$CURRENT_USER" "$USER_HOME/.config/autostart"
+
+echo "✅ post-reboot script will run when $CURRENT_USER logs in after reboot"
 echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
