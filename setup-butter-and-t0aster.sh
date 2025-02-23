@@ -68,6 +68,11 @@ trap 'error_handler || true' ERR # set up error trap
 exec > >(tee -a "$LOG_FILE") 2>&1 # redirect outputs to log file
 echo ""
 
+echo "📦 and make sure required BTRFS dependencies are installed (btrfs-progs)"
+systemctl stop unattended-upgrades || echo "   unattended-upgrades stopped temporarily"
+apt-get update
+apt-get install btrfs-progs -y --no-install-recommends
+
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 echo "1️⃣  create mount points 🪄"
@@ -191,7 +196,7 @@ echo "7️⃣  install snapshot tools and create '0 initial snapshot' for /root 
 apt-get update # update packages lists
 
 echo "📦 install SNAPPER"
-if ! apt-get install -y snapper btrfs-progs git make; then
+if ! apt-get install snapper btrfs-progs git make -y; then
     echo "🛑 SNAPPER installation failed" >&2
     exit 1
 fi
@@ -280,7 +285,7 @@ echo ""
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 echo "8️⃣  install ZRAM tools to compress swap in RAM 🗜"
-apt-get install zram-tools -y # install ZRAM tools
+apt-get install zram-tools -y --no-install-recommends # install ZRAM tools
 
 echo "   configure ZRAM with 25% of RAM and compression"
 cat <<EOF > /etc/default/zramswap # configure ZRAM settings
@@ -315,14 +320,35 @@ echo "📝 create backup script"
 BACKUP_SCRIPT='/usr/local/bin/auto_backup.sh'
 cat <<EOF > $BACKUP_SCRIPT # write backup script
 #!/bin/bash
+set -e  # exit on error
+
+# Define files
 TARGET="/media/backups"
 LOG_FILE="/var/log/backup.log"
-mkdir -p \$TARGET # create backup target
-rsync -aAXv --delete --exclude={"/lost+found/*","/mnt/*","/media/*","/var/cache/*","/proc/*","/tmp/*","/dev/*","/run/*","/sys/*"} / \$TARGET/ >> \$LOG_FILE 2>&1 # perform backup
+LOCK_FILE="/var/run/backup.lock"
+mkdir -p \$TARGET # backup target
+
+# check if another backup is running
+if [ -f "\$LOCK_FILE" ]; then
+    echo "⚠️ another backup is already running" >> "\$LOG_FILE"
+    exit 1
+fi
+
+# create temporary lock file
+touch "\$LOCK_FILE"
+trap 'rm -f "\$LOCK_FILE"' EXIT
+
+echo "🛟 strating backup"
+rsync -aAXv --delete \
+    --exclude={"/lost+found/*","/mnt/*","/media/*","/var/cache/*","/proc/*","/tmp/*","/dev/*","/run/*","/sys/*"} \
+    / \$TARGET/ >> \$LOG_FILE 2>&1
+
+echo ""
 echo "🛟 backup completed at \$(date)" >> \$LOG_FILE # log completion timestamp
 EOF
 chmod +x $BACKUP_SCRIPT # make backup script executable
 
+echo ""
 echo "   set udev rule for USB detection"
 UDEV_RULE='/etc/udev/rules.d/99-backup.rules'
 cat <<EOF > $UDEV_RULE # create udev rule
@@ -367,7 +393,7 @@ echo ""
 
 echo "1️⃣ 4️⃣  take automatic snapshots before automatic security upgrades 📸"
 echo "       if automatic security updates have been activated during OS install"
-if dpkg -l | grep -q unattended-upgrades; then
+if systemctl is-enabled unattended-upgrades | grep -q "enabled"; then
   echo "    configure snapshot hook for unattended-upgrades"
   echo 'DPkg::Pre-Invoke {"btrfs subvolume snapshot / /.snapshots/pre-update-$(date +%Y%m%d%H%M%S)";};' | sudo tee /etc/apt/apt.conf.d/99-btrfs-snapshot-before-upgrade > /dev/null
 else
