@@ -54,6 +54,7 @@ Once the Debian installation is finished and the server has rebooted, log in wit
    ```
 
    This will automatically configure your system, apply all the optimisations, and reboot the server.
+   We'd be glad to read your experience - please return your comments and errors in the 'Issues' section."
 
 ---
 
@@ -79,3 +80,5 @@ If you have suggestions or improvements for the script, feel free to open an iss
 ### **enjoy our buttery smooth server setup! 🧈🍞**
 
 We'd like to thank [JustAGuy Linux](https://www.youtube.com/@JustAGuyLinux) and [Stephen's Tech Talks](https://www.youtube.com/@stephenstechtalks5377) for their inspiration
+
+made with ⏳ by le rez0.net
