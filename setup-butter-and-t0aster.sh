@@ -30,7 +30,7 @@ echo ""
 echo "========================================================="
 echo "                                                         "
 echo "  🌀 This sm00th script will make a Debian 12 server     "
-echo "      with butter file system (BTRFS) ready for:         "
+echo "     with butter file system (BTRFS) ready for:         "
 echo "       📸 /root partition snapshots                      "
 echo "       🛟  automatic backups of /home partition          "
 echo "       💈 preserving SSDs lifespan                       "
@@ -38,8 +38,8 @@ echo "       😴 stay active when laptop lid is closed          "
 echo "                                                         "
 echo "========================================================="
 echo "                                                         "
-echo "  👀  if any step fails, the script will exit            "
-echo "  🗞  and logs will be printed for review from:          "
+echo "  👀 if any step fails, the script will exit            "
+echo "  🗞   and logs will be printed for review from:          "
 echo "      👉 ${LOG_FILE}                                     "
 echo "                                                         "
 echo "========================================================="
@@ -64,14 +64,36 @@ error_handler() {
     exit 1
 }
 
-trap 'error_handler || true' ERR # set up error trap
+trap 'error_handler' ERR # set up error trap
 exec > >(tee -a "$LOG_FILE") 2>&1 # redirect outputs to log file
 echo ""
 
-echo "📦 and make sure required BTRFS dependencies are installed (btrfs-progs)"
-systemctl stop unattended-upgrades || echo "   unattended-upgrades stopped temporarily"
+echo "🔎 then, check if unattended-upgrades is installed"
+UNATTENDED_UPGRADES_ENABLED="disabled" # default value
+if dpkg -l | grep -q unattended-upgrades; then
+    if systemctl is-enabled unattended-upgrades >/dev/null 2>&1; then
+        UNATTENDED_UPGRADES_ENABLED="enabled"
+        echo "✋ stop and disable unattended-upgrades for now"
+        systemctl stop unattended-upgrades
+        systemctl disable unattended-upgrades
+    else
+        echo "   unattended-upgrades is not running"
+    fi
+else
+    echo "   unattended-upgrades is not installed"
+fi
+
+if [ -f /var/lib/dpkg/lock-frontend ]; then
+    echo "🔓 forcefully unlock dpkg"
+    sudo rm -f /var/lib/dpkg/lock-frontend
+    sudo rm -f /var/lib/dpkg/lock
+fi
+
+
+echo "📦 and make sure required dependencies are installed (btrfs-progs, rsync)"
 apt-get update
-apt-get install btrfs-progs -y --no-install-recommends
+apt-get install btrfs-progs rsync -y --no-install-recommends
+echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
@@ -118,7 +140,7 @@ echo "📀 detected /root partition: $DISK_ROOT"
 echo "📀 detected /home partition: $DISK_HOME"
 echo ""
 
-read -p "  Are these partitions correct? (y/n): " confirm
+read -p "   ❓ are these partitions correct? (y/n): " confirm
 [[ "$confirm" == "y" || "$confirm" == "Y" ]] || { echo "Partition detection aborted."; exit 1; }
 
 HOME_PERMISSIONS=$(stat -c "%a" /home)
@@ -131,29 +153,32 @@ echo ""
 echo "3️⃣  ensure mount points exist 🏗️"
 mkdir -p /mnt
 mkdir -p /mnt/home
-echo "    ✅ mount points created"
+echo "✅ mount points created"
 echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 echo "4️⃣  ensure BTRFS subvolumes exist 🧈"
-echo "    first, mount /home partition"
+echo "   first, mount /home partition"
 mount "$DISK_HOME" /mnt/home || { echo "🛑 ERROR failed to mount /home temporarily"; exit 1; }
 
-echo "    and back up its content"
+echo "   and back up its content"
 mkdir -p /tmp/home_backup
 cp -a /home/* /tmp/home_backup/ || { echo "🛑 ERROR failed to backup home contents"; exit 1; }
+echo ""
 
 if ! btrfs subvolume list /mnt/home | grep -q "@home"; then
-    echo "    @home subvolume not found - create subvolume"
+    echo "@home subvolume not found: create subvolume"
     btrfs subvolume create /mnt/home/@home
-    echo "    restore /home content to @home subvolume"
+    echo "🔁 restore /home content to @home subvolume"
     cp -a /tmp/home_backup/* /mnt/home/@home/ || { echo "🛑 ERROR failed to restore home contents"; exit 1; }
 fi
 
-rm -rf /tmp/home_backup
+if [[ -d /tmp/home_backup ]]; then
+    rm -rf /tmp/home_backup
+fi
 umount /mnt/home
-echo "    ✅ BTRFS subvolume @home OK"
+echo "✅ BTRFS subvolume @home OK"
 echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -164,12 +189,12 @@ mount -o subvol=@rootfs "$DISK_ROOT" /mnt || { echo "🛑 ERROR failed to mount 
 if ! findmnt /home &>/dev/null; then
     mount -o subvol=@home "$DISK_HOME" /home || { echo "🛑 ERROR failed to mount /home"; exit 1; }
 else
-    echo "✅ /home is already mounted, skipping remount."
+    echo "    ✅ /home is already mounted: skip remount"
 fi
 
 chmod "$HOME_PERMISSIONS" /mnt/home
 echo "    🔐 /home permissions restored to: $HOME_PERMISSIONS"
-echo "    ✅ /root and /home partitions mounted successfully"
+echo "✅ /root and /home partitions mounted successfully"
 echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -180,10 +205,10 @@ UUID_HOME=$(blkid -s UUID -o value "$DISK_HOME")
 sudo sed -i "/\/home.*btrfs.*/d" /etc/fstab # remove incorrect entries
 sudo sed -i "/\/.*btrfs.*/d" /etc/fstab
 
-echo "📝 write fstab entries"
+echo "    📝 write fstab entries"
 echo "UUID=$UUID_ROOT /      btrfs defaults,noatime,compress=zstd,ssd,space_cache=v2,subvol=@rootfs 0 1" | tee -a /etc/fstab
 echo "UUID=$UUID_HOME /home  btrfs defaults,noatime,compress=zstd,ssd,space_cache=v2,subvol=@home  0 2" | tee -a /etc/fstab
-echo "✅ /etc/fstab updated successfully."
+echo "    ✅ /etc/fstab updated successfully."
 
 echo "🔄 remount /root and /home"
 mount -o remount,compress=zstd "$DISK_ROOT" /
@@ -193,35 +218,33 @@ echo ""
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 echo "7️⃣  install snapshot tools and create '0 initial snapshot' for /root (to keep for ever) 📸"
-apt-get update # update packages lists
-
-echo "📦 install SNAPPER"
+echo "    📦 install SNAPPER"
 if ! apt-get install snapper btrfs-progs git make -y; then
-    echo "🛑 SNAPPER installation failed" >&2
+    echo "    🛑 SNAPPER installation failed" >&2
     exit 1
 fi
 
-echo "📦 install GRUB-BTRFS from source"
-    echo "🛑 grub-btrfs installation from backports failed" >&2
+echo "    📦 install GRUB-BTRFS from source"
+    echo "    🛑 grub-btrfs installation from backports failed" >&2
 if [ -d "/tmp/grub-btrfs" ]; then
     rm -rf /tmp/grub-btrfs
 fi
 
 if ! git clone https://github.com/Antynea/grub-btrfs.git /tmp/grub-btrfs; then
-    echo "🛑 failed to clone grub-btrfs from repository" >&2
+    echo "    🛑 failed to clone grub-btrfs from repository" >&2
     exit 1
 fi
 
 cd /tmp/grub-btrfs
 
-echo "📦 Installing dependencies for GRUB-BTRFS..."
+echo "    📦 Installing dependencies for GRUB-BTRFS..."
 apt-get install -y grub-common grub-pc-bin grub2-common make gcc || {
-    echo "🛑 ERROR: Failed to install dependencies for GRUB-BTRFS" >&2
+    echo "    🛑 ERROR: Failed to install dependencies for GRUB-BTRFS" >&2
     exit 1
 }
 
 if ! make install; then
-    echo "🛑 GRUB-BTRFS installation failed" >&2
+    echo "    🛑 GRUB-BTRFS installation failed" >&2
     exit 1
 fi
 
@@ -260,6 +283,7 @@ if ! snapper -c root create --description "00 initial server snapshot"; then
     exit 1
 fi
 echo "✅ initial snapshot for /root created"
+echo ""
 
 echo "📸 configuring GRUB-BTRFS for boot snapshots"
 if ! systemctl enable --now grub-btrfsd; then
@@ -276,10 +300,10 @@ fi
 echo "✅ SNAPPER and GRUB-BTRFS installation complete"
 echo ""
 
-echo "   To list previous snapshots, run:"
-echo "      👉 sudo snapper -c root list"
+echo "   To list snapshots, run:"
+echo "       👉 sudo snapper -c root list"
 echo "   To rollback to a previous snapshot, use:"
-echo "      👉 sudo snapper rollback <snapshot_number>"
+echo "       👉 sudo snapper rollback <snapshot_number>"
 echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -385,7 +409,6 @@ echo ""
 echo "1️⃣ 3️⃣  disable suspend and hibernation 😴"
 for target in sleep.target suspend.target hibernate.target hybrid-sleep.target; do # ignore sleep triggers
     systemctl mask "$target"
-    systemctl disable "$target"
 done
 echo ""
 
@@ -397,7 +420,7 @@ if systemctl is-enabled unattended-upgrades | grep -q "enabled"; then
   echo "    configure snapshot hook for unattended-upgrades"
   echo 'DPkg::Pre-Invoke {"btrfs subvolume snapshot / /.snapshots/pre-update-$(date +%Y%m%d%H%M%S)";};' | sudo tee /etc/apt/apt.conf.d/99-btrfs-snapshot-before-upgrade > /dev/null
 else
-  echo "    automatic security upgrades are not installed; skip"
+  echo "    automatic security upgrades are not installed: skip"
 fi
 echo ""
 
@@ -413,17 +436,6 @@ echo "1️⃣ 6️⃣  create 'post-reboot-system-check' script 🧰"
 echo ""
 echo "       Run this second script manually after reboot"
 echo "       to ensure butter-t0aster ran fine"
-
-if [ -n "$SUDO_USER" ]; then
-    CURRENT_USER="$SUDO_USER"
-else
-    CURRENT_USER=$(logname 2>/dev/null || who am i | awk '{print $1}')
-    # Fallback if all else fails
-    if [ -z "$CURRENT_USER" ] || [ "$CURRENT_USER" = "root" ]; then
-        echo "Warning: Could not determine the actual user. Using current directory."
-        CURRENT_USER="$(ls -l /home | grep -v total | head -1 | awk '{print $3}')"
-    fi
-fi
 
 USER_HOME=$(getent passwd "$CURRENT_USER" | cut -d: -f6)
 CHECK_SCRIPT="$USER_HOME/post-reboot-system-check.sh"
@@ -489,6 +501,14 @@ echo ""
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 echo "🏁 setup is complete"
+echo ""
+if [[ "$UNATTENDED_UPGRADES_ENABLED" == "enabled" ]]; then
+    echo "🔄 re-enable unattended-upgrades"
+    systemctl enable unattended-upgrades
+    systemctl start unattended-upgrades
+else
+    echo ""
+fi
 echo ""
 read -p "   reboot now? (y/n): " reboot_response
 if [[ "$reboot_response" == "y" ]]; then
