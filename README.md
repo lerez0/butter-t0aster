@@ -25,10 +25,10 @@ Because like butter in a toaster, butter-filesystem in your drive makes homelab 
 - a freshly installed **Debian 12 bookworm** server
 - *msdos* or *gpt* partition table (old BIOS/no EFI computers use msdos/MasterBootRecord and do not require a specific `/boot` partition)
 - two btrfs primary partitions with `noatime` mount options
-  - `/` bootable
+  - `/` (bootable)
   - `/home`
 - one swap area of 2GB should suffice (just in case)
-- **sudo** privileges (or root access) to execute the script
+- **sudo** privileges to execute the script (install sudo with root user and add sudo user)
 - **USB device** labeled "_backups_" for automatic backups
 - a copy of this script or an Internet connection
 
@@ -77,3 +77,5 @@ If you have suggestions or improvements for the script, feel free to open an iss
 ---
 
 ### **enjoy our buttery smooth server setup! 🧈🍞**
+
+We'd like to thank [JustAGuy Linux](https://www.youtube.com/@JustAGuyLinux) and [Stephen's Tech Talks](https://www.youtube.com/@stephenstechtalks5377) for their inspiration
