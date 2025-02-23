@@ -1,13 +1,27 @@
 #!/bin/bash
 
+# this one
+
 set -e
 LOG_FILE="/var/log/butter-t0aster.log" # define log file
 
-if [[ $(/usr/bin/id -u) -ne 0 ]]; then # check for root privilege
-    echo "🛑 this script must be run by a sudo user with root permissions"
-    echo "   please retry"
+if [[ $EUID -eq 0 && -z "$SUDO_USER" ]]; then
+    echo "🛑 This script must be run with sudo, not as the root user directly"
+    echo "   Please retry with: sudo $0"
     exit 1
 fi
+
+if ! sudo -n true 2>/dev/null; then
+    echo "🛑 This script requires sudo privileges"
+    echo "   Please retry with: sudo $0"
+    exit 1
+fi
+
+ACTUAL_USER="$SUDO_USER" # identify actual sudo user
+if [ -z "$ACTUAL_USER" ]; then
+    ACTUAL_USER=$(logname 2>/dev/null || who am i | awk '{print $1}')
+fi
+USER_HOME=$(getent passwd "$ACTUAL_USER" | cut -d: -f6)
 
 # disclaimer
 echo ""
@@ -352,7 +366,7 @@ echo ""
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 echo "1️⃣ 4️⃣  take automatic snapshots before automatic security upgrades 📸"
-echo "    if automatic security updates have been activated during OS install"
+echo "       if automatic security updates have been activated during OS install"
 if dpkg -l | grep -q unattended-upgrades; then
   echo "    configure snapshot hook for unattended-upgrades"
   echo 'DPkg::Pre-Invoke {"btrfs subvolume snapshot / /.snapshots/pre-update-$(date +%Y%m%d%H%M%S)";};' | sudo tee /etc/apt/apt.conf.d/99-btrfs-snapshot-before-upgrade > /dev/null
@@ -369,17 +383,33 @@ echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-echo "1️⃣ 6️⃣  create post-reboot system check 🧰"
+echo "1️⃣ 6️⃣  create 'post-reboot-system-check' script 🧰"
+echo ""
 echo "       Run this second script manually after reboot"
 echo "       to ensure butter-t0aster ran fine"
 
-CURRENT_USER=$(logname || who am i | awk '{print $1}')
+if [ -n "$SUDO_USER" ]; then
+    CURRENT_USER="$SUDO_USER"
+else
+    CURRENT_USER=$(logname 2>/dev/null || who am i | awk '{print $1}')
+    # Fallback if all else fails
+    if [ -z "$CURRENT_USER" ] || [ "$CURRENT_USER" = "root" ]; then
+        echo "Warning: Could not determine the actual user. Using current directory."
+        CURRENT_USER="$(ls -l /home | grep -v total | head -1 | awk '{print $3}')"
+    fi
+fi
+
 USER_HOME=$(getent passwd "$CURRENT_USER" | cut -d: -f6)
 CHECK_SCRIPT="$USER_HOME/post-reboot-system-check.sh"
-SETUP_SCRIPT="$0"
 
 cat <<'EOF' > "$CHECK_SCRIPT"
 #!/bin/bash
+if [[ $EUID -ne 0 ]]; then
+   echo "🛑 This script must be run as root/with sudo"
+   echo "   Please retry with: sudo $0"
+   exit 1
+fi
+
 echo "🧰 run post-reboot system check"
 
 echo "🔎 check BTRFS subvolumes"
@@ -406,23 +436,23 @@ echo "🔎 check disk usage"
 df -h
 echo ""
 
-echo "✅ post-reboot system check complete - remove script"
+echo "✅ post-reboot system check complete"
 echo ""
 
-read -p "🗑️  remove both setup scripts? (y/n): " cleanup_response
+read -p "🗑️ remove both scripts? (y/n): " cleanup_response
 if [[ "$cleanup_response" == "y" || "$cleanup_response" == "Y" ]]; then
-    echo "   Removing setup and check scripts..."
     rm "$0"
-    rm "$(dirname "$0")/setup-butter-and-t0aster.sh" 2>/dev/null
+    rm "$(dirname "$0")/butter-t0aster.sh" 2>/dev/null
     echo "✅ scripts removed"
 else
-    echo "   To remove this script later, run: "
+    echo "   To remove these scripts later, run: "
     echo "   👉 rm $0"
+    echo "   👉 rm $(dirname "$0")/butter-t0aster.sh"
 fi
 EOF
 
 chmod +x "$CHECK_SCRIPT" # allow script execution
-chown "$CURRENT_USER:$CURRENT_USER" "$CHECK_SCRIPT"
+chown "$CURRENT_USER:$(id -gn "$CURRENT_USER")" "$CHECK_SCRIPT"
 echo ""
 
 echo "✅ post-reboot script has been created at: $CHECK_SCRIPT"
