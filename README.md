@@ -81,8 +81,4 @@ If you have suggestions or improvements for the script, feel free to open an iss
 
 We'd like to thank [JustAGuy Linux](https://www.youtube.com/@JustAGuyLinux) and [Stephen's Tech Talks](https://www.youtube.com/@stephenstechtalks5377) for their inspiration
 
-<p align="center">made with ⏳ by le rez0.net</p>
-
-<p align="center">
-  <b>made with ⏳ by le rez0.net</b>
-</p>
+<p align="center"><b>made with ⏳ by le rez0.net</b></p>
