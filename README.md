@@ -81,17 +81,8 @@ If you have suggestions or improvements for the script, feel free to open an iss
 
 We'd like to thank [JustAGuy Linux](https://www.youtube.com/@JustAGuyLinux) and [Stephen's Tech Talks](https://www.youtube.com/@stephenstechtalks5377) for their inspiration
 
-<div style="text-align: center;">made with ⏳ by le rez0.net</div>
-
-<p style="text-align: center;">made with ⏳ by le rez0.net</p>
-
-<center>made with ⏳ by le rez0.net</center>
+<p align="center">made with ⏳ by le rez0.net</p>
 
 <p align="center">
-  <b>Some Links:</b><br>
-  <a href="#">Link 1</a> |
-  <a href="#">Link 2</a> |
-  <a href="#">Link 3</a>
-  <br><br>
-  <img src="http://s.4cdn.org/image/title/105.gif">
+  <b>made with ⏳ by le rez0.net</b>
 </p>
