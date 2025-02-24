@@ -421,8 +421,20 @@ echo "1️⃣ 6️⃣  create 'post-reboot-system-check' script in current folde
 echo "     Run this second script manually after reboot"
 echo "     to ensure butter-t0aster ran fine 👌"
 
-cd
-echo "📂 current working directory: $(pwd)"
+# Change to the home directory of the invoking user
+if [ -n "$SUDO_USER" ]; then
+    cd "/home/$SUDO_USER" || { echo "❌ Failed to change to $SUDO_USER's home directory"; exit 1; }
+else
+    echo "⚠️ SUDO_USER is not set. Falling back to /root."
+    cd /root || { echo "❌ Failed to change to /root"; exit 1; }
+fi
+
+# Log the current working directory
+echo "📂 Current working directory: $(pwd)"
+
+# Define the name of the post-reboot script
+POST_REBOOT_SCRIPT="post-reboot-system-check.sh"
+
 if ! cat <<EOF > post-reboot-system-check.sh; then
     echo "❌ Failed to create post-reboot script" | tee -a "$LOG_FILE"
     exit 1
@@ -475,17 +487,18 @@ else
 fi
 EOF
 
-if [ ! -f post-reboot-system-check.sh ]; then
-    echo "❌ Post-reboot script was not created"
+# Verify the script was created
+if [ ! -f "$POST_REBOOT_SCRIPT" ]; then
+    echo "❌ Post-reboot script was not created at $POST_REBOOT_SCRIPT"
     exit 1
 fi
 
-chmod +x post-reboot-system-check.sh # make script executable
-echo ""
+# Make the script executable
+chmod +x "$POST_REBOOT_SCRIPT" || { echo "❌ Failed to make script executable"; exit 1; }
 
-echo "✅ post-reboot script has been created"
+echo "✅ post-reboot script has been created at $(pwd)/$POST_REBOOT_SCRIPT"
 echo "   after reboot, run it manually with:"
-echo "   👉 cd && sudo bash post-reboot-system-check.sh"
+echo "   👉 cd && sudo bash $(pwd)/$POST_REBOOT_SCRIPT"
 echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
