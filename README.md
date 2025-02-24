@@ -43,17 +43,17 @@ Once the Debian installation is finished and the server has rebooted, log in wit
    wget https://raw.githubusercontent.com/lerez0/butter-t0aster/main/setup-butter-and-t0aster.sh
    ```
 
-2. **make the script executable**
+2. **run the script**
    ```bash
    sudo bash setup-butter-and-t0aster.sh
    ```
 
    This will automatically configure your system, apply all the optimisations, and reboot the server.
 
-3. **run the test manually after reboot**
+3. **run manually the post-reboot system-check after reboot**
 
    ```bash
-   sudo bash ~/post-reboot-system-check.sh
+   sudo bash ~/post-reboot-system-check.sh ### path???
    ```
 
 We'd be glad to read your experience - please return your comments in the 'Issues' section."
