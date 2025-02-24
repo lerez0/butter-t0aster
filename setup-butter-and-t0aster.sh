@@ -1,7 +1,5 @@
 #!/bin/bash
 
-# this one
-
 set -e
 LOG_FILE="/var/log/butter-t0aster.log" # define log file
 
@@ -16,12 +14,6 @@ if ! sudo -n true 2>/dev/null; then
     echo "   Please retry with: sudo $0"
     exit 1
 fi
-
-ACTUAL_USER="$SUDO_USER" # identify actual sudo user
-if [ -z "$ACTUAL_USER" ]; then
-    ACTUAL_USER=$(logname 2>/dev/null || who am i | awk '{print $1}')
-fi
-USER_HOME=$(getent passwd "$ACTUAL_USER" | cut -d: -f6)
 
 # disclaimer
 echo ""
@@ -88,7 +80,7 @@ if [ -f /var/lib/dpkg/lock-frontend ]; then
     sudo rm -f /var/lib/dpkg/lock-frontend
     sudo rm -f /var/lib/dpkg/lock
 fi
-
+echo ""
 
 echo "📦 and make sure required dependencies are installed (btrfs-progs, rsync)"
 apt-get update
@@ -127,7 +119,7 @@ echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-echo "2️⃣  detecte /root and /home partitions ⏫"
+echo "2️⃣  detect /root and /home partitions ⏫"
 DISK_ROOT=$(findmnt -n -o SOURCE -T / | awk -F'[' '{print $1}')
 DISK_HOME=$(findmnt -n -o SOURCE -T /home | awk -F'[' '{print $1}')
 
@@ -168,7 +160,7 @@ cp -a /home/* /tmp/home_backup/ || { echo "🛑 ERROR failed to backup home cont
 echo ""
 
 if ! btrfs subvolume list /mnt/home | grep -q "@home"; then
-    echo "@home subvolume not found: create subvolume"
+    echo "   @home subvolume not found: "
     btrfs subvolume create /mnt/home/@home
     echo "🔁 restore /home content to @home subvolume"
     cp -a /tmp/home_backup/* /mnt/home/@home/ || { echo "🛑 ERROR failed to restore home contents"; exit 1; }
@@ -205,10 +197,10 @@ UUID_HOME=$(blkid -s UUID -o value "$DISK_HOME")
 sudo sed -i "/\/home.*btrfs.*/d" /etc/fstab # remove incorrect entries
 sudo sed -i "/\/.*btrfs.*/d" /etc/fstab
 
-echo "    📝 write fstab entries"
+echo "📝 write fstab entries"
 echo "UUID=$UUID_ROOT /      btrfs defaults,noatime,compress=zstd,ssd,space_cache=v2,subvol=@rootfs 0 1" | tee -a /etc/fstab
 echo "UUID=$UUID_HOME /home  btrfs defaults,noatime,compress=zstd,ssd,space_cache=v2,subvol=@home  0 2" | tee -a /etc/fstab
-echo "    ✅ /etc/fstab updated successfully."
+echo "✅ /etc/fstab updated successfully."
 
 echo "🔄 remount /root and /home"
 mount -o remount,compress=zstd "$DISK_ROOT" /
@@ -223,9 +215,9 @@ if ! apt-get install snapper btrfs-progs git make -y; then
     echo "    🛑 SNAPPER installation failed" >&2
     exit 1
 fi
+echo ""
 
 echo "    📦 install GRUB-BTRFS from source"
-    echo "    🛑 grub-btrfs installation from backports failed" >&2
 if [ -d "/tmp/grub-btrfs" ]; then
     rm -rf /tmp/grub-btrfs
 fi
@@ -234,6 +226,7 @@ if ! git clone https://github.com/Antynea/grub-btrfs.git /tmp/grub-btrfs; then
     echo "    🛑 failed to clone grub-btrfs from repository" >&2
     exit 1
 fi
+echo ""
 
 cd /tmp/grub-btrfs
 
@@ -314,7 +307,7 @@ apt-get install zram-tools -y --no-install-recommends # install ZRAM tools
 echo "   configure ZRAM with 25% of RAM and compression"
 cat <<EOF > /etc/default/zramswap # configure ZRAM settings
 ZRAM_PERCENTAGE=25
-COMPRESSION_ALGO=zstd
+COMPRESSION_ALGO=lz4
 PRIORITY=10
 EOF
 
@@ -334,7 +327,7 @@ echo ""
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 echo "1️⃣ 0️⃣  plan SSD trim once a week 💈"
-echo "0 0 * * 0 fstrim /" | tee -a /etc/cron.d/ssd_trim # schedule SSD trim with a cron job
+echo "@weekly root fstrim /" | tee -a /etc/cron.d/ssd_trim # schedule SSD trim with a cron job
 echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -372,8 +365,7 @@ echo "🛟 backup completed at \$(date)" >> \$LOG_FILE # log completion timestam
 EOF
 chmod +x $BACKUP_SCRIPT # make backup script executable
 
-echo ""
-echo "   set udev rule for USB detection"
+echo "   and set udev rule for USB detection"
 UDEV_RULE='/etc/udev/rules.d/99-backup.rules'
 cat <<EOF > $UDEV_RULE # create udev rule
 ACTION=="add", SUBSYSTEM=="block", ENV{ID_FS_LABEL}=="backups", RUN+="$BACKUP_SCRIPT"
@@ -416,9 +408,9 @@ echo ""
 
 echo "1️⃣ 4️⃣  take automatic snapshots before automatic security upgrades 📸"
 echo "       if automatic security updates have been activated during OS install"
-if systemctl is-enabled unattended-upgrades | grep -q "enabled"; then
-  echo "    configure snapshot hook for unattended-upgrades"
-  echo 'DPkg::Pre-Invoke {"btrfs subvolume snapshot / /.snapshots/pre-update-$(date +%Y%m%d%H%M%S)";};' | sudo tee /etc/apt/apt.conf.d/99-btrfs-snapshot-before-upgrade > /dev/null
+if [[ "$UNATTENDED_UPGRADES_ENABLED" == "enabled" ]]; then
+    echo "    configure snapshot hook for unattended-upgrades"
+    echo 'DPkg::Pre-Invoke {"btrfs subvolume snapshot / /.snapshots/pre-update-$(date +%Y%m%d%H%M%S)";};' | sudo tee /etc/apt/apt.conf.d/99-btrfs-snapshot-before-upgrade > /dev/null
 else
   echo "    automatic security upgrades are not installed: skip"
 fi
@@ -432,14 +424,11 @@ echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-echo "1️⃣ 6️⃣  create 'post-reboot-system-check' script 🧰"
-echo ""
-echo "       Run this second script manually after reboot"
-echo "       to ensure butter-t0aster ran fine"
+echo "1️⃣ 6️⃣  create 'post-reboot-system-check' script in current folder 🧰"
+echo "      Run this second script manually after reboot"
+echo "      to ensure butter-t0aster ran fine"
 
-USER_HOME=$(getent passwd "$CURRENT_USER" | cut -d: -f6)
-CHECK_SCRIPT="$USER_HOME/post-reboot-system-check.sh"
-
+CHECK_SCRIPT="./post-reboot-system-check.sh"
 cat <<'EOF' > "$CHECK_SCRIPT"
 #!/bin/bash
 if [[ $EUID -ne 0 ]]; then
@@ -490,7 +479,6 @@ fi
 EOF
 
 chmod +x "$CHECK_SCRIPT" # allow script execution
-chown "$CURRENT_USER:$(id -gn "$CURRENT_USER")" "$CHECK_SCRIPT"
 echo ""
 
 echo "✅ post-reboot script has been created at: $CHECK_SCRIPT"
