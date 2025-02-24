@@ -435,7 +435,8 @@ echo "📂 Current working directory: $(pwd)"
 # Define the name of the post-reboot script
 POST_REBOOT_SCRIPT="post-reboot-system-check.sh"
 
-if ! cat <<EOF > post-reboot-system-check.sh; then
+# Use a here-document to write the script content into the file
+if ! cat <<EOF > "$POST_REBOOT_SCRIPT"; then
     echo "❌ Failed to create post-reboot script" | tee -a "$LOG_FILE"
     exit 1
 fi
