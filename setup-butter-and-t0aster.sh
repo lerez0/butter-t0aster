@@ -65,7 +65,7 @@ UNATTENDED_UPGRADES_ENABLED="disabled" # default value
 if dpkg -l | grep -q unattended-upgrades; then
     if systemctl is-enabled unattended-upgrades >/dev/null 2>&1; then
         UNATTENDED_UPGRADES_ENABLED="enabled"
-        echo "✋ stop and disable unattended-upgrades for now"
+        echo "   ✋ stop and disable unattended-upgrades for now"
         systemctl stop unattended-upgrades
         systemctl disable unattended-upgrades
     else
@@ -421,27 +421,27 @@ echo "1️⃣ 6️⃣  create 'post-reboot-system-check' script in current folde
 echo "     Run this second script manually after reboot"
 echo "     to ensure butter-t0aster ran fine 👌"
 
-# Change to the home directory of the invoking user
+# Change to the home directory of the invoking sudo user
 if [ -n "$SUDO_USER" ]; then
-    cd "/home/$SUDO_USER" || { echo "❌ Failed to change to $SUDO_USER's home directory"; exit 1; }
+    USER_HOME="/home/$SUDO_USER"
+    cd "$USER_HOME" || { echo "❌ Failed to change to $SUDO_USER's home directory"; exit 1; }
 else
     echo "⚠️ SUDO_USER is not set. Falling back to /root."
-    cd /root || { echo "❌ Failed to change to /root"; exit 1; }
+    USER_HOME="/root"
+    cd "$USER_HOME" || { echo "❌ Failed to change to /root"; exit 1; }
 fi
 
 # Log the current working directory
 echo "📂 Current working directory: $(pwd)"
 
 # Define the name of the post-reboot script
-POST_REBOOT_SCRIPT="post-reboot-system-check.sh"
+POST_REBOOT_SCRIPT="$USER_HOME/post-reboot-system-check.sh"
 
-# Use a here-document to write the script content into the file
+# Create the post-reboot script with a here-document
 echo "🔍 Debug: Writing post-reboot script content..."
-if ! cat <<EOF > "$POST_REBOOT_SCRIPT"; then
-    echo "❌ Failed to create post-reboot script" | tee -a "$LOG_FILE"
-    exit 1
-fi
+cat > "$POST_REBOOT_SCRIPT" << 'EOF' || { echo "❌ Failed to create post-reboot script" | tee -a "$LOG_FILE"; exit 1; }
 #!/bin/bash
+
 if [[ $EUID -ne 0 ]]; then
    echo "🛑 This script must be run as root/with sudo"
    echo "   Please retry with: sudo $0"
@@ -480,12 +480,12 @@ echo ""
 read -p "🗑️❓ remove both scripts? (y/n): " cleanup_response
 if [[ "$cleanup_response" == "y" || "$cleanup_response" == "Y" ]]; then
     rm "$0"
-    rm "$(dirname "$0")/setup-butter-and-t0aster.sh" 2>/dev/null
+    rm "$HOME/setup-butter-and-t0aster.sh" 2>/dev/null || echo "⚠️ Main script not found at $HOME/setup-butter-and-t0aster.sh"
     echo "✅ scripts removed"
 else
     echo "   To remove these scripts later, run: "
     echo "   👉 rm $0"
-    echo "   👉 rm $(dirname "$0")/setup-butter-and-t0aster.sh"
+    echo "   👉 rm $HOME/setup-butter-and-t0aster.sh"
 fi
 EOF
 echo "🔍 Debug: Post-reboot script content written successfully."
@@ -496,13 +496,10 @@ if [ ! -f "$POST_REBOOT_SCRIPT" ]; then
     exit 1
 fi
 
-# Make the script executable
-chmod +x "$POST_REBOOT_SCRIPT" || { echo "❌ Failed to make script executable"; exit 1; }
-
 # Provide feedback to the user
-echo "✅ post-reboot script has been created at $(pwd)/$POST_REBOOT_SCRIPT"
+echo "✅ post-reboot script has been created at $POST_REBOOT_SCRIPT"
 echo "   after reboot, run it manually with:"
-echo "   👉 cd && sudo bash $(pwd)/$POST_REBOOT_SCRIPT"
+echo "   👉 cd ~ && sudo bash $POST_REBOOT_SCRIPT"
 echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
