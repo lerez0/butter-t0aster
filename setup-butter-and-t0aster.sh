@@ -421,7 +421,8 @@ echo "1️⃣ 6️⃣  create 'post-reboot-system-check' script in current folde
 echo "     Run this second script manually after reboot"
 echo "     to ensure butter-t0aster ran fine 👌"
 
-cat <<'EOF' > post-reboot-system-check.sh
+cd
+cat <<EOF > post-reboot-system-check.sh
 #!/bin/bash
 if [[ $EUID -ne 0 ]]; then
    echo "🛑 This script must be run as root/with sudo"
