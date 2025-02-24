@@ -22,7 +22,7 @@ echo ""
 echo "========================================================="
 echo "                                                         "
 echo "  🌀 This sm00th script will make a Debian 12 server     "
-echo "     with butter file system (BTRFS) ready for:         "
+echo "     with butter file system (BTRFS) ready for:          "
 echo "       📸 /root partition snapshots                      "
 echo "       🛟  automatic backups of /home partition          "
 echo "       💈 preserving SSDs lifespan                       "
@@ -30,8 +30,8 @@ echo "       😴 stay active when laptop lid is closed          "
 echo "                                                         "
 echo "========================================================="
 echo "                                                         "
-echo "  👀 if any step fails, the script will exit            "
-echo "  🗞   and logs will be printed for review from:          "
+echo "  👀 if any step fails, the script will exit             "
+echo "  🗞  and logs will be printed for review from:          "
 echo "      👉 ${LOG_FILE}                                     "
 echo "                                                         "
 echo "========================================================="
@@ -82,7 +82,7 @@ if [ -f /var/lib/dpkg/lock-frontend ]; then
 fi
 echo ""
 
-echo "📦 and make sure required dependencies are installed (btrfs-progs, rsync)"
+echo "📦 and make sure required packages are installed (btrfs-progs, rsync)"
 apt-get update
 apt-get install btrfs-progs rsync -y --no-install-recommends
 echo ""
@@ -376,14 +376,7 @@ echo ""
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 echo "1️⃣ 2️⃣  disable sleep when lid is closed (in logind.conf) 💡"
-while true; do
-    read -p "    Do you want the laptop to remain active when the lid is closed? (y/n): " lid_response
-    case $lid_response in
-        [yYnN]) break ;;
-        *) echo "    answer 'y' or 'n'" ;;
-    esac
-done
-
+read -p "     ❓ should the laptop remain active when its lid is closed? (y/n): " lid_response
 if [[ "$lid_response" == "y" || "$lid_response" == "Y" ]]; then
   echo "     configure the laptop to remain active with the lid closed"
   cat <<EOF | sudo tee /etc/systemd/logind.conf
@@ -407,12 +400,12 @@ echo ""
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 echo "1️⃣ 4️⃣  take automatic snapshots before automatic security upgrades 📸"
-echo "       if automatic security updates have been activated during OS install"
+echo "     🔎 if automatic security updates have been activated during OS install"
 if [[ "$UNATTENDED_UPGRADES_ENABLED" == "enabled" ]]; then
-    echo "    configure snapshot hook for unattended-upgrades"
+    echo "     📝 configure snapshot hook for unattended-upgrades"
     echo 'DPkg::Pre-Invoke {"btrfs subvolume snapshot / /.snapshots/pre-update-$(date +%Y%m%d%H%M%S)";};' | sudo tee /etc/apt/apt.conf.d/99-btrfs-snapshot-before-upgrade > /dev/null
 else
-  echo "    automatic security upgrades are not installed: skip"
+  echo "     🔎 automatic security upgrades are not installed: skip"
 fi
 echo ""
 
@@ -425,8 +418,8 @@ echo ""
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 echo "1️⃣ 6️⃣  create 'post-reboot-system-check' script in current folder 🧰"
-echo "      Run this second script manually after reboot"
-echo "      to ensure butter-t0aster ran fine"
+echo "     Run this second script manually after reboot"
+echo "     to ensure butter-t0aster ran fine 👌"
 
 CHECK_SCRIPT="./post-reboot-system-check.sh"
 cat <<'EOF' > "$CHECK_SCRIPT"
@@ -466,15 +459,15 @@ echo ""
 echo "✅ post-reboot system check complete"
 echo ""
 
-read -p "🗑️ remove both scripts? (y/n): " cleanup_response
+read -p "🗑️❓ remove both scripts? (y/n): " cleanup_response
 if [[ "$cleanup_response" == "y" || "$cleanup_response" == "Y" ]]; then
     rm "$0"
-    rm "$(dirname "$0")/butter-t0aster.sh" 2>/dev/null
+    rm "$(dirname "$0")/setup-butter-and-t0aster.sh" 2>/dev/null
     echo "✅ scripts removed"
 else
     echo "   To remove these scripts later, run: "
     echo "   👉 rm $0"
-    echo "   👉 rm $(dirname "$0")/butter-t0aster.sh"
+    echo "   👉 rm $(dirname "$0")/setup-butter-and-t0aster.sh"
 fi
 EOF
 
@@ -483,7 +476,7 @@ echo ""
 
 echo "✅ post-reboot script has been created at: $CHECK_SCRIPT"
 echo "   after reboot, run it manually with:"
-echo "   👉 sudo bash $CHECK_SCRIPT"
+echo "   👉 cd && sudo bash $CHECK_SCRIPT"
 echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -498,19 +491,22 @@ else
     echo ""
 fi
 echo ""
-read -p "   reboot now? (y/n): " reboot_response
+read -p "   ❓ reboot now? (y/n): " reboot_response
 if [[ "$reboot_response" == "y" ]]; then
   reboot now
 else
   echo ""
   echo "🔃 reboot is required to apply changes"
+  echo ""
   echo "   to reboot, run: "
   echo "   👉 reboot now "
+  echo ""
   echo "📸 to manually trigger a snapshot at any time, run:"
   echo "   👉 sudo btrfs subvolume snapshot / /.snapshots/manual-$(date +%Y%m%d%H%M%S)"
+  echo ""
   echo "🗞  logs are available at: $LOG_FILE"
   echo ""
   echo "   made with ⏳ by le rez0.net"
-  echo "   please return experience and issues at https://github.com/lerez0"
+  echo "   please return experience and issues at https://github.com/lerez0/butter-t0aster/issues"
   echo ""
 fi
