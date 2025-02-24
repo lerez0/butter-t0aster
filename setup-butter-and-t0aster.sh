@@ -436,6 +436,7 @@ echo "📂 Current working directory: $(pwd)"
 POST_REBOOT_SCRIPT="post-reboot-system-check.sh"
 
 # Use a here-document to write the script content into the file
+echo "🔍 Debug: Writing post-reboot script content..."
 if ! cat <<EOF > "$POST_REBOOT_SCRIPT"; then
     echo "❌ Failed to create post-reboot script" | tee -a "$LOG_FILE"
     exit 1
@@ -487,6 +488,7 @@ else
     echo "   👉 rm $(dirname "$0")/setup-butter-and-t0aster.sh"
 fi
 EOF
+echo "🔍 Debug: Post-reboot script content written successfully."
 
 # Verify the script was created
 if [ ! -f "$POST_REBOOT_SCRIPT" ]; then
@@ -497,6 +499,7 @@ fi
 # Make the script executable
 chmod +x "$POST_REBOOT_SCRIPT" || { echo "❌ Failed to make script executable"; exit 1; }
 
+# Provide feedback to the user
 echo "✅ post-reboot script has been created at $(pwd)/$POST_REBOOT_SCRIPT"
 echo "   after reboot, run it manually with:"
 echo "   👉 cd && sudo bash $(pwd)/$POST_REBOOT_SCRIPT"
