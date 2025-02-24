@@ -304,14 +304,14 @@ echo ""
 echo "8️⃣  install ZRAM tools to compress swap in RAM 🗜"
 apt-get install zram-tools -y --no-install-recommends # install ZRAM tools
 
-echo "   configure ZRAM with 25% of RAM and compression"
+echo "   🛢 configure ZRAM with 25% of RAM and compression"
 cat <<EOF > /etc/default/zramswap # configure ZRAM settings
 ZRAM_PERCENTAGE=25
 COMPRESSION_ALGO=lz4
 PRIORITY=10
 EOF
 
-echo "   start ZRAM on system boot"
+echo "   ⚡️ start ZRAM on system boot"
 systemctl start zramswap # start ZRAM now
 systemctl enable zramswap # start ZRAM on boot
 echo ""
@@ -333,7 +333,7 @@ echo ""
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 echo "1️⃣ 1️⃣  set up automatic backups when 'backups' USB is inserted 🛟"
-echo "📝 create backup script"
+echo "     📝 create backup script"
 BACKUP_SCRIPT='/usr/local/bin/auto_backup.sh'
 cat <<EOF > $BACKUP_SCRIPT # write backup script
 #!/bin/bash
@@ -365,7 +365,7 @@ echo "🛟 backup completed at \$(date)" >> \$LOG_FILE # log completion timestam
 EOF
 chmod +x $BACKUP_SCRIPT # make backup script executable
 
-echo "   and set udev rule for USB detection"
+echo "     🔌 and set udev rule for USB detection"
 UDEV_RULE='/etc/udev/rules.d/99-backup.rules'
 cat <<EOF > $UDEV_RULE # create udev rule
 ACTION=="add", SUBSYSTEM=="block", ENV{ID_FS_LABEL}=="backups", RUN+="$BACKUP_SCRIPT"
@@ -378,7 +378,7 @@ echo ""
 echo "1️⃣ 2️⃣  disable sleep when lid is closed (in logind.conf) 💡"
 read -p "     ❓ should the laptop remain active when its lid is closed? (y/n): " lid_response
 if [[ "$lid_response" == "y" || "$lid_response" == "Y" ]]; then
-  echo "     configure the laptop to remain active with the lid closed"
+  echo "       configure the laptop to remain active with the lid closed"
   cat <<EOF | sudo tee /etc/systemd/logind.conf
 HandleLidSwitch=ignore
 HandleLidSwitchDocked=ignore
@@ -400,7 +400,7 @@ echo ""
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 echo "1️⃣ 4️⃣  take automatic snapshots before automatic security upgrades 📸"
-echo "     🔎 if automatic security updates have been activated during OS install"
+echo "     if automatic security updates have been activated during OS install"
 if [[ "$UNATTENDED_UPGRADES_ENABLED" == "enabled" ]]; then
     echo "     📝 configure snapshot hook for unattended-upgrades"
     echo 'DPkg::Pre-Invoke {"btrfs subvolume snapshot / /.snapshots/pre-update-$(date +%Y%m%d%H%M%S)";};' | sudo tee /etc/apt/apt.conf.d/99-btrfs-snapshot-before-upgrade > /dev/null
@@ -421,7 +421,8 @@ echo "1️⃣ 6️⃣  create 'post-reboot-system-check' script in current folde
 echo "     Run this second script manually after reboot"
 echo "     to ensure butter-t0aster ran fine 👌"
 
-CHECK_SCRIPT="./post-reboot-system-check.sh"
+CURRENT_DIR=$(pwd)
+CHECK_SCRIPT="$CURRENT_DIR/post-reboot-system-check.sh"
 cat <<'EOF' > "$CHECK_SCRIPT"
 #!/bin/bash
 if [[ $EUID -ne 0 ]]; then
