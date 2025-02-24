@@ -421,7 +421,7 @@ echo "1️⃣ 6️⃣  create 'post-reboot-system-check' script in current folde
 echo "     Run this second script manually after reboot"
 echo "     to ensure butter-t0aster ran fine 👌"
 
-cd "$(dirname "$0")"
+cd
 
 cat <<'EOF' > post-reboot-system-check.sh
 #!/bin/bash
