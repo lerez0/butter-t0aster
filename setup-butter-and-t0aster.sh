@@ -422,7 +422,11 @@ echo "     Run this second script manually after reboot"
 echo "     to ensure butter-t0aster ran fine 👌"
 
 cd
-cat <<EOF > post-reboot-system-check.sh
+echo "📂 current working directory: $(pwd)"
+if ! cat <<EOF > post-reboot-system-check.sh; then
+    echo "❌ Failed to create post-reboot script" | tee -a "$LOG_FILE"
+    exit 1
+fi
 #!/bin/bash
 if [[ $EUID -ne 0 ]]; then
    echo "🛑 This script must be run as root/with sudo"
@@ -471,7 +475,12 @@ else
 fi
 EOF
 
-chmod +x post-reboot-system-check.sh # allow script execution
+if [ ! -f post-reboot-system-check.sh ]; then
+    echo "❌ Post-reboot script was not created"
+    exit 1
+fi
+
+chmod +x post-reboot-system-check.sh # make script executable
 echo ""
 
 echo "✅ post-reboot script has been created"
