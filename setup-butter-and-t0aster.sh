@@ -184,7 +184,7 @@ else
     echo "    ✅ /home is already mounted: skip remount "
 fi
 
-chmod "$HOME_PERMISSIONS" /mnt/home
+# chmod "$HOME_PERMISSIONS" /mnt/home
 echo "    🔐 /home permissions restored to: $HOME_PERMISSIONS "
 echo "✅ /root and /home partitions mounted successfully "
 echo ""
@@ -431,7 +431,7 @@ echo ""
 echo "🧰 After reboot, you might want to download and run our 'post-reboot-system-check' "
 echo "   a second script to ensure 'setup-butter-and-t0aster' ran fine 👌"
 echo "   📥 cd ~ && wget https://raw.githubusercontent.com/lerez0/butter-t0aster/main/post-reboot-system-check.sh "
-echo "   👉 sudo bash post-reboot-system-check.sh"
+echo "   👉 sudo bash ~/post-reboot-system-check.sh"
 echo ""
 echo "📸 to manually trigger a snapshot at any time, run: "
 echo "   👉 sudo btrfs subvolume snapshot / /.snapshots/manual-$(date +%Y%m%d%H%M%S) "

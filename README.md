@@ -76,7 +76,6 @@ This script is under the MIT License. See the [LICENSE](LICENSE) file for detail
 
 If you have suggestions or improvements for the script, feel free to open an issue.
 
-
 ---
 
 ### **enjoy our buttery smooth server setup! 🧈🍞**
