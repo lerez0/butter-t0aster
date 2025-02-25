@@ -185,7 +185,7 @@ else
 fi
 
 # chmod "$HOME_PERMISSIONS" /mnt/home
-echo "    🔐 /home permissions restored to: $HOME_PERMISSIONS "
+# echo "    🔐 /home permissions restored to: $HOME_PERMISSIONS "
 echo "✅ /root and /home partitions mounted successfully "
 echo ""
 
@@ -217,7 +217,7 @@ if ! apt-get install snapper btrfs-progs git make -y; then
 fi
 echo ""
 
-echo "    📦 install GRUB-BTRFS from source "
+echo "    📦 install GRUB-BTRFS from source with all dependecies "
 if [ -d "/tmp/grub-btrfs" ]; then
     rm -rf /tmp/grub-btrfs
 fi
@@ -231,7 +231,7 @@ echo ""
 cd /tmp/grub-btrfs
 
 echo "    📦 install dependencies for GRUB-BTRFS "
-apt-get install -y grub-common grub-pc-bin grub2-common make gcc || {
+apt-get install -y grub-common grub-pc-bin grub2-common make gcc inotify-tools || {
     echo "    🛑 failed to install dependencies for GRUB-BTRFS " >&2
     exit 1
 }
@@ -240,6 +240,23 @@ if ! make install; then
     echo "    🛑 GRUB-BTRFS installation failed " >&2
     exit 1
 fi
+
+echo "    📝 ensure GRUB-BTRFS is configured correctly "
+cat <<EOF | sudo tee /etc/systemd/system/grub-btrfsd.service
+[Unit]
+Description=Regenerate grub-btrfs.cfg with Btrfs snapshots
+After=local-fs.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/grub-btrfsd
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload
 
 echo "📝 configure SNAPPER for /root "
 if ! snapper -c root create-config /; then
@@ -417,8 +434,71 @@ echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
+echo "1️⃣ 6️⃣  create 'post-reboot-system-check' script in /tmp 🧰"
+echo "     Run this second script manually after reboot"
+echo "     to ensure butter-t0aster ran fine 👌"
+
+POST_REBOOT_SCRIPT="/tmp/post-reboot-system-check.sh"
+cat > "$POST_REBOOT_SCRIPT" << 'EOF' || { echo "🛑 failed to create post-reboot script" | tee -a "$LOG_FILE"; exit 1; }
+#!/bin/bash
+
+if [[ $EUID -ne 0 ]]; then
+   echo "🛑 This script must be run as root/with sudo"
+   echo "   Please retry with: sudo $0"
+   exit 1
+fi
+
+echo "🧰 run post-reboot system check"
+echo ""
+
+echo "🔎 check BTRFS subvolumes"
+btrfs subvolume list /
+echo ""
+
+echo "🔎 check fstab entries"
+grep btrfs /etc/fstab
+echo ""
+
+echo "🔎 check SNAPPER configurations"
+snapper -c root list
+echo ""
+
+echo "🔎 check GRUB-BTRFS detection"
+ls /boot/grub/
+echo ""
+
+echo "🔎 check for failed services"
+systemctl --failed
+echo ""
+
+echo "🔎 check disk usage"
+df -h
+echo ""
+
+echo "✅ post-reboot system check complete"
+echo ""
+
+read -p "🗑️❓ remove both scripts from /tmp? (y/n): " cleanup_response
+if [[ "$cleanup_response" == "y" || "$cleanup_response" == "Y" ]]; then
+    rm "$0"
+    rm -f "/tmp/setup-butter-and-t0aster.sh" 2>/dev/null || echo "⚠️ main script not found in /tmp "
+    echo "✅ scripts removed "
+else
+    echo "   To remove these scripts later, run: "
+    echo "   👉 rm $0 "
+    echo "   👉 rm /tmp/setup-butter-and-t0aster.sh "
+fi
+EOF
+
+echo "✅ post-reboot script has been created at $POST_REBOOT_SCRIPT"
+echo "   after reboot, run it manually with:"
+echo "   👉 sudo bash $POST_REBOOT_SCRIPT"
+echo ""
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
 if [[ "$UNATTENDED_UPGRADES_ENABLED" == "enabled" ]]; then
-    echo "🔄 re-enable unattended-upgrades"
+    echo "🔄 re-enable unattended-upgrades "
     systemctl enable unattended-upgrades
     systemctl start unattended-upgrades
 else
@@ -428,10 +508,9 @@ echo ""
 
 echo "🏁 setup is complete"
 echo ""
-echo "🧰 After reboot, you might want to download and run our 'post-reboot-system-check' "
-echo "   a second script to ensure 'setup-butter-and-t0aster' ran fine 👌"
-echo "   📥 cd ~ && wget https://raw.githubusercontent.com/lerez0/butter-t0aster/main/post-reboot-system-check.sh "
-echo "   👉 sudo bash ~/post-reboot-system-check.sh"
+echo "🧰 After reboot, you might want to run our 'post-reboot-system-check' "
+echo "   a second script to ensure 'setup-butter-and-t0aster' ran fine 👌 "
+echo "   👉 sudo bash /tmp/post-reboot-system-check.sh "
 echo ""
 echo "📸 to manually trigger a snapshot at any time, run: "
 echo "   👉 sudo btrfs subvolume snapshot / /.snapshots/manual-$(date +%Y%m%d%H%M%S) "

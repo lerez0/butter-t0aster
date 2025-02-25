@@ -53,7 +53,7 @@ Once the Debian installation is finished and the server has rebooted, log in wit
 3. **run a system-check manually after reboot** to ensure butter-t0aster ran fine 👌"
 
    ```bash
-   cd && wget https://raw.githubusercontent.com/lerez0/butter-t0aster/main/post-reboot-system-check.sh && sudo bash ~/post-reboot-system-check.sh
+   sudo bash /tmp/post-reboot-system-check.sh
    ```
 
 We'd be glad to read your experience - please return your comments in the 'Issues' section."
