@@ -272,11 +272,10 @@ if ! apt-get install snapper btrfs-progs git make -y; then
 fi
 echo ""
 
-echo "    📦 install GRUB-BTRFS from source with all dependecies "
+echo "    📦 install GRUB-BTRFS from source with all dependencies "
 if [ -d "/tmp/grub-btrfs" ]; then
     rm -rf /tmp/grub-btrfs
 fi
-
 if ! git clone https://github.com/Antynea/grub-btrfs.git /tmp/grub-btrfs; then
     echo "    🛑 failed to clone grub-btrfs from repository " >&2
     exit 1
@@ -290,12 +289,12 @@ apt-get install -y grub-common grub-pc-bin grub2-common make gcc inotify-tools |
     echo "    🛑 failed to install dependencies for GRUB-BTRFS " >&2
     exit 1
 }
-
 if ! make install; then
     echo "    🛑 GRUB-BTRFS installation failed " >&2
     exit 1
 fi
-
+[ -f /usr/local/sbin/grub-btrfsd ] || { echo "🛑 grub-btrfsd binary missing " >&2; exit 1; }
+chmod +x /usr/local/sbin/grub-btrfsd
 echo "    📝 ensure GRUB-BTRFS is configured correctly "
 cat <<EOF | sudo tee /etc/systemd/system/grub-btrfsd.service
 [Unit]
@@ -311,14 +310,13 @@ Restart=on-failure
 WantedBy=multi-user.target
 EOF
 
-sudo systemctl daemon-reload
+systemctl daemon-reload
 
 echo "📝 configure SNAPPER for /root "
 if ! snapper -c root create-config /; then
     echo "🛑 failed SNAPPER configuration " >&2
     exit 1
 fi
-
 
 echo "   check /.snapshots BTRFS subvolume state"
 if ! btrfs subvolume show /.snapshots &>/dev/null; then
