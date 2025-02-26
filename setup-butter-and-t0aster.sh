@@ -88,15 +88,14 @@ apt-get install btrfs-progs rsync -y --no-install-recommends
 echo ""
 
 echo "🧰 and create a system-check script to run after reboot "
-echo "   to ensure butter-t0aster would have run fine 👌"
+echo "   to ensure butter-t0aster has run fine 👌"
 
-POST_REBOOT_SCRIPT="/tmp/post-reboot-system-check.sh"
-cat > "$POST_REBOOT_SCRIPT" << 'EOF' || { echo "🛑 failed to create post-reboot script" | tee -a "$LOG_FILE"; exit 1; }
+POST_REBOOT_SCRIPT="/home/$SUDO_USER/post-reboot-system-check.sh"
+cat > "$POST_REBOOT_SCRIPT" << 'EOF' || { echo "🛑 failed to create post-reboot script " | tee -a "$LOG_FILE"; exit 1; }
 #!/bin/bash
-
 if [[ $EUID -ne 0 ]]; then
-   echo "🛑 This script must be run as root/with sudo"
-   echo "   Please retry with: sudo $0"
+   echo "🛑 This script must be run as by sudo $0 "
+   echo "   Please retry with: sudo $0 "
    exit 1
 fi
 
@@ -130,17 +129,18 @@ echo ""
 echo "✅ post-reboot system check complete"
 echo ""
 
-read -p "🗑️❓ remove both scripts from /tmp? (y/n): " cleanup_response
+read -p "🗑️❓ remove both scripts (y/n): " cleanup_response
 if [[ "$cleanup_response" == "y" || "$cleanup_response" == "Y" ]]; then
     rm "$0"
-    rm -f "/tmp/setup-butter-and-t0aster.sh" 2>/dev/null || echo "⚠️ main script not found in /tmp "
+    rm -f "/home/$SUDO_USER/setup-butter-and-t0aster.sh" 2>/dev/null || echo "⚠️ main script not found "
     echo "✅ scripts removed "
 else
     echo "   To remove these scripts later, run: "
     echo "   👉 rm $0 "
-    echo "   👉 rm /tmp/setup-butter-and-t0aster.sh "
+    echo "   👉 rm ~/setup-butter-and-t0aster.sh "
 fi
 EOF
+echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
@@ -502,7 +502,7 @@ echo "🏁 setup is complete"
 echo ""
 echo "🧰 After reboot, you might want to run our 'post-reboot-system-check' "
 echo "   a second script to ensure 'setup-butter-and-t0aster' ran fine 👌 "
-echo "   👉 sudo bash /tmp/post-reboot-system-check.sh "
+echo "   👉 sudo bash post-reboot-system-check.sh "
 echo ""
 echo "📸 to manually trigger a snapshot at any time, run: "
 echo "   👉 sudo btrfs subvolume snapshot / /.snapshots/manual-$(date +%Y%m%d%H%M%S) "
