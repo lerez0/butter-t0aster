@@ -40,7 +40,7 @@ Once the Debian installation is finished and the server has rebooted, log in wit
 
 1. **download the script** to the user `home` directory
    ```bash
-   wget https://raw.githubusercontent.com/lerez0/butter-t0aster/main/setup-butter-and-t0aster.sh
+   cd && wget https://raw.githubusercontent.com/lerez0/butter-t0aster/main/setup-butter-and-t0aster.sh
    ```
 
 2. **run the script**

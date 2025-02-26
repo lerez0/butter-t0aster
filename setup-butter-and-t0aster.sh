@@ -82,10 +82,65 @@ if [ -f /var/lib/dpkg/lock-frontend ]; then
 fi
 echo ""
 
-echo "📦 and make sure required packages are installed (btrfs-progs, rsync) "
+echo "📦 make sure required packages are installed (btrfs-progs, rsync) "
 apt-get update
 apt-get install btrfs-progs rsync -y --no-install-recommends
 echo ""
+
+echo "🧰 and create a system-check script to run after reboot "
+echo "   to ensure butter-t0aster would have run fine 👌"
+
+POST_REBOOT_SCRIPT="/tmp/post-reboot-system-check.sh"
+cat > "$POST_REBOOT_SCRIPT" << 'EOF' || { echo "🛑 failed to create post-reboot script" | tee -a "$LOG_FILE"; exit 1; }
+#!/bin/bash
+
+if [[ $EUID -ne 0 ]]; then
+   echo "🛑 This script must be run as root/with sudo"
+   echo "   Please retry with: sudo $0"
+   exit 1
+fi
+
+echo "🧰 run post-reboot system check"
+echo ""
+
+echo "🔎 check BTRFS subvolumes"
+btrfs subvolume list /
+echo ""
+
+echo "🔎 check fstab entries"
+grep btrfs /etc/fstab
+echo ""
+
+echo "🔎 check SNAPPER configurations"
+snapper -c root list
+echo ""
+
+echo "🔎 check GRUB-BTRFS detection"
+ls /boot/grub/
+echo ""
+
+echo "🔎 check for failed services"
+systemctl --failed
+echo ""
+
+echo "🔎 check disk usage"
+df -h
+echo ""
+
+echo "✅ post-reboot system check complete"
+echo ""
+
+read -p "🗑️❓ remove both scripts from /tmp? (y/n): " cleanup_response
+if [[ "$cleanup_response" == "y" || "$cleanup_response" == "Y" ]]; then
+    rm "$0"
+    rm -f "/tmp/setup-butter-and-t0aster.sh" 2>/dev/null || echo "⚠️ main script not found in /tmp "
+    echo "✅ scripts removed "
+else
+    echo "   To remove these scripts later, run: "
+    echo "   👉 rm $0 "
+    echo "   👉 rm /tmp/setup-butter-and-t0aster.sh "
+fi
+EOF
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
@@ -430,69 +485,6 @@ echo ""
 
 echo "1️⃣ 5️⃣  create '01 optimised server snapshot' 📸 "
 snapper -c root create --description "01 optimised server snapshot "
-echo ""
-
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-
-echo "1️⃣ 6️⃣  create 'post-reboot-system-check' script in /tmp 🧰"
-echo "     Run this second script manually after reboot"
-echo "     to ensure butter-t0aster ran fine 👌"
-
-POST_REBOOT_SCRIPT="/tmp/post-reboot-system-check.sh"
-cat > "$POST_REBOOT_SCRIPT" << 'EOF' || { echo "🛑 failed to create post-reboot script" | tee -a "$LOG_FILE"; exit 1; }
-#!/bin/bash
-
-if [[ $EUID -ne 0 ]]; then
-   echo "🛑 This script must be run as root/with sudo"
-   echo "   Please retry with: sudo $0"
-   exit 1
-fi
-
-echo "🧰 run post-reboot system check"
-echo ""
-
-echo "🔎 check BTRFS subvolumes"
-btrfs subvolume list /
-echo ""
-
-echo "🔎 check fstab entries"
-grep btrfs /etc/fstab
-echo ""
-
-echo "🔎 check SNAPPER configurations"
-snapper -c root list
-echo ""
-
-echo "🔎 check GRUB-BTRFS detection"
-ls /boot/grub/
-echo ""
-
-echo "🔎 check for failed services"
-systemctl --failed
-echo ""
-
-echo "🔎 check disk usage"
-df -h
-echo ""
-
-echo "✅ post-reboot system check complete"
-echo ""
-
-read -p "🗑️❓ remove both scripts from /tmp? (y/n): " cleanup_response
-if [[ "$cleanup_response" == "y" || "$cleanup_response" == "Y" ]]; then
-    rm "$0"
-    rm -f "/tmp/setup-butter-and-t0aster.sh" 2>/dev/null || echo "⚠️ main script not found in /tmp "
-    echo "✅ scripts removed "
-else
-    echo "   To remove these scripts later, run: "
-    echo "   👉 rm $0 "
-    echo "   👉 rm /tmp/setup-butter-and-t0aster.sh "
-fi
-EOF
-
-echo "✅ post-reboot script has been created at $POST_REBOOT_SCRIPT"
-echo "   after reboot, run it manually with:"
-echo "   👉 sudo bash $POST_REBOOT_SCRIPT"
 echo ""
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
