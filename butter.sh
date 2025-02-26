@@ -15,14 +15,13 @@ if ! sudo -n true 2>/dev/null; then
     exit 1
 fi
 
-# disclaimer
-echo ""
 echo ""
 echo ""
 echo "========================================================="
 echo "                                                         "
-echo "  🌀 This sm00th script will make a Debian 12 server     "
-echo "     with butter file system (BTRFS) ready for:          "
+echo "  🌀 This sm00th script will make a Debian server        "
+echo "     (with butter file system BTRFS) ready for:          "
+echo "                                                         "
 echo "       📸 /root partition snapshots                      "
 echo "       🛟  automatic backups of /home partition          "
 echo "       💈 preserving SSDs lifespan                       "
@@ -30,12 +29,12 @@ echo "       😴 stay active when laptop lid is closed          "
 echo "                                                         "
 echo "========================================================="
 echo "                                                         "
-echo "  👀 if any step fails, the script will exit             "
-echo "  🗞  and logs will be printed for review from:          "
-echo "      👉 ${LOG_FILE}                                     "
+echo "     👀 if any step fails, the script will exit          "
+echo "                                                         "
+echo "     🗞  and logs will be printed for review from:       "
+echo "         👉 ${LOG_FILE}                                  "
 echo "                                                         "
 echo "========================================================="
-echo ""
 echo ""
 echo ""
 
@@ -84,8 +83,8 @@ lsblk -o NAME,FSTYPE,MOUNTPOINT | tee -a "$LOG_FILE"
 echo ""
 
 echo "🔎 look for BTRFS subvolumes "
-btrfs subvolume list / || echo "No subvolumes detected on / "
-btrfs subvolume list /home || echo "No subvolumes detected on /home "
+btrfs subvolume list / || echo "   ❌ no subvolumes detected on / "
+btrfs subvolume list /home || echo "   ❌ no subvolumes detected on /home "
 echo ""
 
 echo "2️⃣  detect /root and /home partitions ⏫ "
@@ -131,7 +130,7 @@ umount /mnt/home
 echo "✅ BTRFS subvolume @home OK "
 echo ""
 
-echo "5️⃣  mount /root and /home in optimized BTRFS subvolumes ⏫ "
+echo "5️⃣  mount /root and /home in optimised BTRFS subvolumes ⏫ "
 mount -o subvol=@rootfs "$DISK_ROOT" /mnt || { echo "🛑 failed to mount /root "; exit 1; }
 if ! findmnt /home &>/dev/null; then
     mount -o subvol=@home "$DISK_HOME" /home || { echo "🛑 failed to mount /home "; exit 1; }
@@ -151,7 +150,7 @@ echo "UUID=$UUID_HOME /home  btrfs defaults,noatime,compress=zstd,ssd,space_cach
 echo "✅ /etc/fstab updated successfully."
 echo ""
 
-echo " butter setup is complete"
+echo "✌️ butter optimisation is complete "
 echo ""
 echo "🔃 please reboot to apply BTRFS mounts "
 echo "   then run t0aster: "
@@ -162,7 +161,7 @@ echo ""
 echo "   made with ⏳ by le rez0.net "
 echo "   💌 please return love and experience at https://github.com/lerez0/butter-t0aster/issues "
 echo ""
-read -p "   ❓ reboot now? (y/n): " reboot_response
+read -p "❓ reboot now? (y/n): " reboot_response
 if [[ "$reboot_response" == "y" ]]; then
   reboot now
 else
