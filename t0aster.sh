@@ -15,6 +15,7 @@ if ! sudo -n true 2>/dev/null; then
     exit 1
 fi
 
+echo ""
 echo "🗞  Continuing setup with logs at $LOG_FILE "
 trap 'echo "🛑 error - see $LOG_FILE"; cat "$LOG_FILE"; exit 1' ERR
 exec > >(tee -a "$LOG_FILE") 2>&1
@@ -36,13 +37,13 @@ else
 fi
 
 if [ -f /var/lib/dpkg/lock-frontend ]; then
-    echo "🔓 forcefully unlock dpkg "
+    echo "   🔓 forcefully unlock dpkg "
     rm -f /var/lib/dpkg/lock-frontend
     rm -f /var/lib/dpkg/lock
 fi
 echo ""
 
-echo "📦 make sure required packages are installed (rsync) "
+echo "📦 install rsync for backups "
 apt-get update
 apt-get install rsync -y --no-install-recommends
 echo ""
@@ -64,18 +65,19 @@ if ! git clone https://github.com/Antynea/grub-btrfs.git /tmp/grub-btrfs; then
 fi
 echo ""
 cd /tmp/grub-btrfs
+
 echo "    📦 install dependencies for GRUB-BTRFS "
 apt-get install -y grub-common grub-pc-bin grub2-common make gcc inotify-tools || {
     echo "    🛑 failed to install dependencies for GRUB-BTRFS " >&2
     exit 1
 }
-if ! make install; then
-    echo "    🛑 GRUB-BTRFS installation failed " >&2
+if ! make; then
+    echo "    🛑 GRUB-BTRFS build failed " >&2
     exit 1
 fi
-[ -f /usr/local/sbin/grub-btrfsd ] || { echo "🛑 grub-btrfsd binary missing " >&2; exit 1; }
+cp grub-btrfsd /usr/local/sbin/grub-btrfsd || { echo "🛑 failed to copy grub-btrfsd " >&2; exit 1; }
 chmod +x /usr/local/sbin/grub-btrfsd
-echo "    📝 ensure GRUB-BTRFS is configured correctly "
+echo "    📝 configure GRUB-BTRFS "
 cat <<EOF | tee /etc/systemd/system/grub-btrfsd.service
 [Unit]
 Description=Regenerate grub-btrfs.cfg with Btrfs snapshots
@@ -90,6 +92,8 @@ Restart=on-failure
 WantedBy=multi-user.target
 EOF
 systemctl daemon-reload
+echo""
+
 echo "📸 configuring GRUB-BTRFS for boot snapshots "
 if ! systemctl enable --now grub-btrfsd; then
     echo "🟠 enable GRUB-BTRFS service failed " >&2
@@ -102,6 +106,7 @@ if ! update-grub; then
 fi
 echo "✅ SNAPPER and GRUB-BTRFS installation complete "
 echo ""
+
 echo "   To list snapshots, run: "
 echo "     👉 sudo snapper -c root list "
 echo "   To rollback to a previous snapshot, use: "
@@ -112,7 +117,7 @@ if ! snapper -c root create-config /; then
     echo "🛑 failed SNAPPER configuration " >&2
     exit 1
 fi
-echo "   check /.snapshots BTRFS subvolume state"
+echo "   check /.snapshots BTRFS subvolume state "
 if ! btrfs subvolume show /.snapshots &>/dev/null; then
     echo "📂 create BTRFS subvolume for SNAPPER "
     if ! btrfs subvolume create /.snapshots; then
@@ -120,7 +125,7 @@ if ! btrfs subvolume show /.snapshots &>/dev/null; then
         exit 1
     fi
 fi
-echo "   configuring snapshot policies"
+echo "   📝 configure snapshot policies"
 snapper -c root set-config "TIMELINE_CREATE=yes"
 snapper -c root set-config "TIMELINE_CLEANUP=yes"
 snapper -c root set-config "TIMELINE_MIN_AGE=1800"
@@ -269,7 +274,8 @@ else
 fi
 echo ""
 
-echo "🏁 t0aster optimisation is complete "
+echo "🏁 your t0aster is set up and ready "
+echo "   enjoy it while it's hot ♨️ "
 echo ""
 echo ""
 echo "📸 to manually trigger a snapshot at any time, run: "
