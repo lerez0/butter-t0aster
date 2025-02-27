@@ -161,7 +161,7 @@ echo ""
 echo "   made with ⏳ by le rez0.net "
 echo "   💌 please return love and experience at https://github.com/lerez0/butter-t0aster/issues "
 echo ""
-read -p "❓ reboot now? (y/n): " reboot_response
+read -p "   ❓ reboot now? (y/n): " reboot_response
 if [[ "$reboot_response" == "y" ]]; then
   reboot now
 else
