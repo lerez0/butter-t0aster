@@ -107,11 +107,6 @@ fi
 echo "✅ SNAPPER and GRUB-BTRFS installation complete "
 echo ""
 
-echo "   To list snapshots, run: "
-echo "     👉 sudo snapper -c root list "
-echo "   To rollback to a previous snapshot, use: "
-echo "     👉 sudo snapper rollback 1234_snapshot_number "
-echo ""
 echo "📝 configure SNAPPER for /root "
 if ! snapper -c root create-config /; then
     echo "🛑 failed SNAPPER configuration " >&2
@@ -129,7 +124,7 @@ echo "   📝 configure snapshot policies"
 snapper -c root set-config "TIMELINE_CREATE=yes"
 snapper -c root set-config "TIMELINE_CLEANUP=yes"
 snapper -c root set-config "TIMELINE_MIN_AGE=1800"
-snapper -c root set-config "TIMELINE_LIMIT_HOURLY=0"
+snapper -c root set-config "TIMELINE_LIMIT_HOURLY=1"
 snapper -c root set-config "TIMELINE_LIMIT_DAILY=7"
 snapper -c root set-config "TIMELINE_LIMIT_WEEKLY=2"
 snapper -c root set-config "TIMELINE_LIMIT_MONTHLY=2"
@@ -152,7 +147,7 @@ ZRAM_PERCENTAGE=25
 COMPRESSION_ALGO=lz4
 PRIORITY=10
 EOF
-echo "   ⚡️ start ZRAM on system boot "
+echo "   🧨 start ZRAM on system boot "
 systemctl start zramswap
 systemctl enable zramswap
 echo ""
@@ -183,6 +178,7 @@ mkdir -p \$TARGET
 # check if another backup is running
 if [ -f "\$LOCK_FILE" ]; then
     echo "⚠️ another backup is already running" >> "\$LOG_FILE"
+    echo "⚠️ Backup already running - skipping" | wall
     exit 1
 fi
 
@@ -190,6 +186,7 @@ fi
 touch "\$LOCK_FILE"
 trap 'rm -f "\$LOCK_FILE"' EXIT
 
+echo "🛟 backup starting now - check \$LOG_FILE for details" | wall
 echo "🛟 strating backup"
 rsync -aAXv --delete \
     --exclude={"/lost+found/*","/mnt/*","/media/*","/var/cache/*","/proc/*","/tmp/*","/dev/*","/run/*","/sys/*"} \
@@ -197,6 +194,7 @@ rsync -aAXv --delete \
 
 echo ""
 echo "🛟 backup completed at \$(date)" >> \$LOG_FILE
+echo "🛟 backup complete - see \$LOG_FILE" | wall
 EOF
 chmod +x $BACKUP_SCRIPT
 echo "     🔌 and set udev rule for USB detection "
@@ -241,11 +239,12 @@ echo "1️⃣ 5️⃣  create '01 optimised server snapshot' 📸 "
 snapper -c root create --description "01 optimised server snapshot "
 echo ""
 
-echo "1️⃣ 6️⃣  run system check 🧰 "
+echo "1️⃣ 6️⃣  now let's run a system check 🧰 "
 echo "     to ensure butter and t0aster ran fine 👌 "
 echo ""
 echo "🔎 check BTRFS subvolumes "
 btrfs subvolume list /
+btrfs subvolume list /home
 echo ""
 echo "🔎 check fstab entries "
 grep btrfs /etc/fstab
@@ -274,15 +273,53 @@ else
 fi
 echo ""
 
-echo "🏁 your t0aster is set up and ready "
-echo "   enjoy it while it's hot ♨️ "
+echo "🏁 your t0aster is now set up and ready "
+echo "   enjoy it while it's hot 🔥 "
 echo ""
 echo ""
 echo "📸 to manually trigger a snapshot at any time, run: "
-echo "   👉 sudo btrfs subvolume snapshot / /.snapshots/manual-$(date +%Y%m%d%H%M%S) "
+echo "    👉 sudo btrfs subvolume snapshot / /.snapshots/manual-$(date +%Y%m%d%H%M%S) "
 echo ""
-echo "🗞  logs are available at: $LOG_FILE "
+echo "   To list snapshots, run: "
+echo "     👉 sudo snapper -c root list "
+echo "   To rollback to a previous snapshot, use: "
+echo "     👉 sudo snapper rollback 1234_snapshot_number "
 echo ""
-echo "   made with ⏳ by le rez0.net "
+echo "🗞  logs are available at: "
+echo "    👉 $LOG_FILE "
+echo ""
+echo "   🧈 butter & t0aster are made with ⏳ by le rez0.net "
 echo "   💌 please return love and experience at https://github.com/lerez0/butter-t0aster/issues "
 echo ""
+echo ""
+read -p "   Now, would you like to  prepare a USB drive for 🛟 backups❓ (y/n): " usb_response
+if [[ "$usb_response" == "y" || "$usb_response" == "Y" ]]; then
+    BEFORE=$(lsblk -o NAME,SIZE,TYPE | grep disk | awk '{print $1","$2}')
+    echo "   👉 plug in a USB drive right now to format it and label it 'backups' "
+    echo "❗️ this will wipe the drive and all its data "
+    read -p "   is the USB drive plugged in❓ (y/n): " format_response
+    if [[ "$format_response" == "y" || "$format_response" == "Y" ]]; then
+        AFTER=$(lsblk -o NAME,SIZE,TYPE | grep disk | awk '{print $1","$2}')
+        NEW_DRIVE=$(comm -13 <(echo "$BEFORE" | sort) <(echo "$AFTER" | sort) | head -n 1)
+        if [ -n "$NEW_DRIVE" ]; then
+            USB_NAME=$(echo "$NEW_DRIVE" | cut -d',' -f1)
+            USB_SIZE=$(echo "$NEW_DRIVE" | cut -d',' -f2)
+            echo "   🔎 detected $USB_NAME USB $USB_SIZE "
+            read -p "      Do you want to use '$USB_NAME USB $USB_SIZE' as 'backups'❓ (y/n): " confirm_response
+            if [[ "$confirm_response" == "y" || "$confirm_response" == "Y" ]]; then
+                echo "   🆑  formatting /dev/$USB_NAME as Ext4 with label 'backups' "
+                parted /dev/$USB_NAME --script mklabel gpt mkpart primary ext4 0% 100% set 1 lba on || { echo "🛑 failed to partition USB " >&2; exit 1; }
+                mkfs.ext4 -F -L backups /dev/${USB_NAME}1 || { echo "🛑 failed to format USB " >&2; exit 1; }
+                echo "   ✅ USB drive formatted as 'backups' "
+                echo "   plug it in anytime to trigger automatic backups "
+            else
+                echo "   skipping USB format - prepare a 'backups' drive later "
+            fi
+        else
+            echo "   ⚠️ no new USB drive detected - skipping "
+            echo "   prepare a 'backups' drive later "
+        fi
+    else
+        echo "   skipping USB format - prepare a 'backups' drive later "
+    fi
+fi
