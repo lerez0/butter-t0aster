@@ -105,6 +105,13 @@ echo ""
 echo "   💡 initial /home permissions saved: $HOME_PERMISSIONS "
 
 echo "3️⃣  ensure BTRFS subvolumes exist 🧈 "
+mount "$DISK_ROOT" /mnt || { echo "🛑 failed to mount root temporarily "; exit 1; }
+if ! btrfs subvolume list /mnt | grep -q "@rootfs"; then
+    echo "   @rootfs subvolume not found: "
+    btrfs subvolume create /mnt/@rootfs
+fi
+umount /mnt
+
 echo "   first, mount /home partition "
 mount "$DISK_HOME" /mnt/home || { echo "🛑 failed to mount /home temporarily "; exit 1; }
 echo "   and back up its content"
@@ -121,6 +128,7 @@ if [[ -d /tmp/home_backup ]]; then
     rm -rf /tmp/home_backup
 fi
 umount /mnt/home
+rm -rf /mnt/home
 echo "✅ BTRFS subvolume @home OK "
 echo ""
 
