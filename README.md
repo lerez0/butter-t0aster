@@ -92,7 +92,7 @@ If you have suggestions or improvements for the script, feel free to open an iss
 
 ### **enjoy our buttery smooth server setup! 🧈🍞**
 
-To take it a step further, we recommend running our Debian `firstb00t` script, to level up your server security to NSA's recommendations — because a smooth server deserves a tough shell!
+Crank it up a notch with our Debian `firstb00t` script and harden your setup to NSA-grade specs — because a smooth server deserves a tough shell!
 
 Grab it at [firstb00t repo](https://github.com/lerez0/firstb00t). Expect a quick spread of safety: tighter SSH, sneaky firewall rules, email sender, spinning containers, and a log to peek at (`/var/log/firstb00t.log`). Your server’ll be slick *and* secure — ready to toast any troublemaker!
 

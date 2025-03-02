@@ -23,7 +23,7 @@ echo "  🌀 This sm00th script will make a Debian server        "
 echo "     (with butter file system BTRFS) ready for:          "
 echo "                                                         "
 echo "       📸 /root partition snapshots                      "
-echo "       🛟  automatic backups of /home partition          "
+echo "       🛟 /home partition automatic backups              "
 echo "       💈 preserving SSDs lifespan                       "
 echo "       💨 speed, with ZRAM + SSD tweaks                  "
 echo "       😴 staying active when laptop lid is closed       "
@@ -58,12 +58,12 @@ trap 'error_handler' ERR
 exec > >(tee -a "$LOG_FILE") 2>&1
 echo ""
 
-echo "📦 make sure required packages are installed (btrfs-progs) "
+echo "📦 and then make sure required packages are installed (btrfs-progs) "
 apt-get update
 apt-get install btrfs-progs -y --no-install-recommends
 echo ""
 
-echo "1️⃣  create mount points 🪄 "
+echo "1️⃣  create mount points in /mnt for /root and /home 🪄 "
 ROOT_MOUNT_POINT="/mnt"
 HOME_MOUNT_POINT="/mnt/home"
 mkdir -p "$ROOT_MOUNT_POINT"
@@ -95,23 +95,24 @@ if [[ -z "$DISK_ROOT" || -z "$DISK_HOME" ]]; then
     echo "🛑 /root and /home partitions not detected "
     exit 1
 fi
-echo "📀 detected /root partition: $DISK_ROOT"
-echo "📀 detected /home partition: $DISK_HOME"
+
+echo "   📀 detected /root partition: $DISK_ROOT"
+echo "   📀 detected /home partition: $DISK_HOME"
 echo ""
 read -p "   ❓ are these partitions correct? (y/n): " confirm
 [[ "$confirm" == "y" || "$confirm" == "Y" ]] || { echo "👎 partition detection aborted "; exit 1; }
 HOME_PERMISSIONS=$(stat -c "%a" /home)
-echo ""
-echo "💡 initial /home permissions saved: $HOME_PERMISSIONS "
-echo ""
-
-echo "3️⃣  ensure mount points exist 🏗️ "
-mkdir -p /mnt
-mkdir -p /mnt/home
-echo "✅ mount points created "
+echo "   💡 initial /home permissions saved: $HOME_PERMISSIONS "
 echo ""
 
-echo "4️⃣  ensure BTRFS subvolumes exist 🧈 "
+echo "3️⃣  ensure BTRFS subvolumes exist 🧈 "
+mount "$DISK_ROOT" /mnt || { echo "🛑 failed to mount root temporarily "; exit 1; }
+if ! btrfs subvolume list /mnt | grep -q "@rootfs"; then
+    echo "   @rootfs subvolume not found: "
+    btrfs subvolume create /mnt/@rootfs
+fi
+umount /mnt
+
 echo "   first, mount /home partition "
 mount "$DISK_HOME" /mnt/home || { echo "🛑 failed to mount /home temporarily "; exit 1; }
 echo "   and back up its content"
@@ -121,27 +122,28 @@ echo ""
 if ! btrfs subvolume list /mnt/home | grep -q "@home"; then
     echo "   @home subvolume not found: "
     btrfs subvolume create /mnt/home/@home
-    echo "🔁 restore /home content to @home subvolume "
+    echo "   🔁 restore /home content to @home subvolume "
     cp -a /tmp/home_backup/* /mnt/home/@home/ || { echo "🛑 failed to restore home contents "; exit 1; }
 fi
 if [[ -d /tmp/home_backup ]]; then
     rm -rf /tmp/home_backup
 fi
 umount /mnt/home
+rm -rf /mnt/home
 echo "✅ BTRFS subvolume @home OK "
 echo ""
 
-echo "5️⃣  mount /root and /home in optimised BTRFS subvolumes ⏫ "
+echo "4️⃣  mount /root and /home in optimised BTRFS subvolumes ⏫ "
 mount -o subvol=@rootfs "$DISK_ROOT" /mnt || { echo "🛑 failed to mount /root "; exit 1; }
 if ! findmnt /home &>/dev/null; then
     mount -o subvol=@home "$DISK_HOME" /home || { echo "🛑 failed to mount /home "; exit 1; }
 else
-    echo "    ✅ /home is already mounted: skip remount "
+    echo "   ⏭ /home is already mounted: skip remount "
 fi
 echo "✅ /root and /home partitions mounted successfully "
 echo ""
 
-echo "6️⃣  configure /etc/fstab for persistence 💾 "
+echo "5️⃣  configure /etc/fstab for persistence 💾 "
 UUID_ROOT=$(blkid -s UUID -o value "$DISK_ROOT")
 UUID_HOME=$(blkid -s UUID -o value "$DISK_HOME")
 sed -i "/\/home.*btrfs.*/d" /etc/fstab
@@ -151,18 +153,22 @@ echo "UUID=$UUID_HOME /home  btrfs defaults,noatime,compress=zstd,ssd,space_cach
 echo "✅ /etc/fstab updated successfully."
 echo ""
 
-echo "✌️ butter optimisation is complete "
+echo "|=========================================================|"
+echo "|   ✌️ butter optimisation of the system is now complete   |"
+echo "|                                                         |"
+echo "|   🔃 please reboot to apply BTRFS mounts                |"
+echo "|      then run t0aster:                                  |"
+echo "|      👉 cd && sudo bash t0aster.sh                      |"
+echo "|                                                         |"
+echo "|=========================================================|"
 echo ""
-echo "🔃 please reboot to apply BTRFS mounts "
-echo "   then run t0aster: "
-echo "   👉 sudo bash /home/$SUDO_USER/t0aster.sh "
+echo "    🗞  logs are available at: $LOG_FILE "
 echo ""
-echo "🗞  logs are available at: $LOG_FILE "
+echo "        made with ⏳ by le rez0.net "
+echo "        💌 please return love and experience at https://github.com/lerez0/butter-t0aster/issues "
 echo ""
-echo "   made with ⏳ by le rez0.net "
-echo "   💌 please return love and experience at https://github.com/lerez0/butter-t0aster/issues "
-echo ""
-read -p "   ❓ reboot now? (y/n): " reboot_response
+read -p "     ❓ reboot now? (y/n): " reboot_response
+
 if [[ "$reboot_response" == "y" ]]; then
   reboot now
 else
