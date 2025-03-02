@@ -163,7 +163,6 @@ echo "9️⃣  plan SSD trim once a week 💈 "
 echo "@weekly root fstrim /" | tee -a /etc/cron.d/ssd_trim
 echo ""
 
-
 echo "1️⃣ 0️⃣  set up automatic backups when 'backups' USB is inserted 🛟 "
 echo "     📝 create backup script"
 BACKUP_SCRIPT='/usr/local/bin/auto_backup.sh'

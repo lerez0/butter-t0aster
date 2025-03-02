@@ -95,14 +95,15 @@ if [[ -z "$DISK_ROOT" || -z "$DISK_HOME" ]]; then
     echo "🛑 /root and /home partitions not detected "
     exit 1
 fi
+
 echo "   📀 detected /root partition: $DISK_ROOT"
 echo "   📀 detected /home partition: $DISK_HOME"
 echo ""
 read -p "   ❓ are these partitions correct? (y/n): " confirm
 [[ "$confirm" == "y" || "$confirm" == "Y" ]] || { echo "👎 partition detection aborted "; exit 1; }
 HOME_PERMISSIONS=$(stat -c "%a" /home)
-echo ""
 echo "   💡 initial /home permissions saved: $HOME_PERMISSIONS "
+echo ""
 
 echo "3️⃣  ensure BTRFS subvolumes exist 🧈 "
 mount "$DISK_ROOT" /mnt || { echo "🛑 failed to mount root temporarily "; exit 1; }
@@ -167,6 +168,7 @@ echo "        made with ⏳ by le rez0.net "
 echo "        💌 please return love and experience at https://github.com/lerez0/butter-t0aster/issues "
 echo ""
 read -p "     ❓ reboot now? (y/n): " reboot_response
+
 if [[ "$reboot_response" == "y" ]]; then
   reboot now
 else
