@@ -1,11 +1,12 @@
 #!/bin/bash
 set -e
 
+BEFORE=$(lsblk -o NAME,SIZE,TYPE | grep disk | awk '{print $1","$2}')
 echo "     👉 plug in a USB drive right now to format it and label it 'backups' "
 echo ""
-echo "❗️ this will wipe the drive and all its data ❗️"
+echo "     ❗️ this will wipe the drive and all its data ❗️"
 echo ""
-read -p "   Is the USB drive plugged in❓ (y/n): " plugged
+read -p "     Is the USB drive plugged in❓ (y/n): " plugged
 
 if [[ "$plugged" == "y" || "$plugged" == "Y" ]]; then
     AFTER=$(lsblk -o NAME,SIZE,TYPE | grep disk | awk '{print $1","$2}')
@@ -28,3 +29,9 @@ if [[ "$plugged" == "y" || "$plugged" == "Y" ]]; then
         echo "   ⚠️ no new drive detected - skipping "
     fi
 fi
+
+echo "✅ scripts are complete for good "
+echo ""
+echo "   You might want to have a look at our Debian firstbOOt script 🥾 "
+echo "   to leverage the security and pleasure of use of your Debian server. "
+echo "   Have a look at: https://github.com/lerez0/firstb00t "
